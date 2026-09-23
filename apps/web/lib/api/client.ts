@@ -11,10 +11,12 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   if (!apiBaseUrl) throw new Error("NEXT_PUBLIC_API_URL is not configured.");
   const response = await fetch(new URL(path.replace(/^\//, ""), `${apiBaseUrl.replace(/\/$/, "")}/`), {
     ...init,
+    credentials: "include",
     headers: { Accept: "application/json", ...init.headers },
   });
   if (!response.ok) {
     throw new ApiError(`API request failed with status ${response.status}.`, response.status);
   }
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }

@@ -6,10 +6,16 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace @ghardekho/web",
-    "build": "npm run build --workspace @ghardekho/web",
-    "lint": "npm run lint --workspace @ghardekho/web",
-    "typecheck": "npm run typecheck --workspace @ghardekho/web"
+    "dev": "npm run dev:web",
+    "dev:web": "npm run dev --workspace @ghardekho/web",
+    "predev:web": "npm run build --workspace @ghardekho/validation && npm run build --workspace @ghardekho/types",
+    "dev:api": "npm run dev --workspace @ghardekho/api",
+    "build": "npm run build:api && npm run build --workspace @ghardekho/web",
+    "build:api": "npm run build --workspace @ghardekho/api",
+    "lint": "npm run lint --workspace @ghardekho/web && npm run lint --workspace @ghardekho/api",
+    "typecheck": "npm run build --workspace @ghardekho/validation && npm run build --workspace @ghardekho/types && npm run typecheck --workspace @ghardekho/web && npm run typecheck --workspace @ghardekho/database && npm run build --workspace @ghardekho/database && npm run typecheck --workspace @ghardekho/api",
+    "test:api": "npm run test --workspace @ghardekho/api",
+    "test:api:integration": "npm run test:integration --workspace @ghardekho/api"
   },
   "engines": {
     "node": ">=20.9"

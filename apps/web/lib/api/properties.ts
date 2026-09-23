@@ -1,0 +1,36 @@
+import type { ApiListSuccess, ApiSuccess, PropertyRecord } from "@ghardekho/types";
+import type { PropertyCreateRequest, PropertySearchRequest, PropertyUpdateRequest } from "@ghardekho/validation";
+import { apiRequest } from "./client";
+
+function queryString(filters: PropertySearchRequest) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== "") params.set(key, String(value));
+  }
+  return params.toString();
+}
+
+export function searchProperties(filters: PropertySearchRequest = {}) {
+  const query = queryString(filters);
+  return apiRequest<ApiListSuccess<PropertyRecord>>(`/api/v1/properties${query ? `?${query}` : ""}`);
+}
+
+export function getProperty(id: string) {
+  return apiRequest<ApiSuccess<PropertyRecord>>(`/api/v1/properties/${encodeURIComponent(id)}`);
+}
+
+export function createProperty(input: PropertyCreateRequest) {
+  return apiRequest<ApiSuccess<PropertyRecord>>("/api/v1/properties", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+  });
+}
+
+export function updateProperty(id: string, input: PropertyUpdateRequest) {
+  return apiRequest<ApiSuccess<PropertyRecord>>(`/api/v1/properties/${encodeURIComponent(id)}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+  });
+}
+
+export function archiveProperty(id: string) {
+  return apiRequest<void>(`/api/v1/properties/${encodeURIComponent(id)}`, { method: "DELETE" });
+}

@@ -1,0 +1,39 @@
+{
+  "name": "@ghardekho/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "npm run build --workspace @ghardekho/validation && npm run build --workspace @ghardekho/types && npm run build --workspace @ghardekho/database",
+    "dev": "tsx watch src/server.ts",
+    "prebuild": "npm run build --workspace @ghardekho/validation && npm run build --workspace @ghardekho/types && npm run build --workspace @ghardekho/database",
+    "pretest": "npm run build --workspace @ghardekho/validation && npm run build --workspace @ghardekho/types && npm run build --workspace @ghardekho/database",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "lint": "eslint src test",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node test/run-tests.mjs",
+    "pretest:integration": "npm run build --workspace @ghardekho/validation && npm run build --workspace @ghardekho/types && npm run build --workspace @ghardekho/database && npm run build --workspace @ghardekho/api",
+    "test:integration": "node test/run-tests.mjs integration"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^10.0.1",
+    "@fastify/cors": "^11.3.0",
+    "@fastify/helmet": "^13.1.1",
+    "@fastify/rate-limit": "^11.2.0",
+    "@ghardekho/database": "*",
+    "@ghardekho/types": "*",
+    "@ghardekho/validation": "*",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^16.6.1",
+    "fastify": "^5.12.5",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "eslint": "^9.39.0",
+    "eslint-config-next": "^16.3.6",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.0"
+  }
+}
