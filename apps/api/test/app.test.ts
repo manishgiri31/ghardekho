@@ -62,6 +62,7 @@ function memoryDatabase() {
         return property;
       },
       findUnique: async ({ where }: { where: { id: string } }) => properties.find((property) => property.id === where.id) ?? null,
+      findFirst: async ({ where }: { where: { id?: string; slug?: string } }) => properties.find((property) => (where.id && property.id === where.id) || (where.slug && property.slug === where.slug)) ?? null,
       update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
         const property = properties.find((item) => item.id === where.id);
         if (!property) throw new Error("Property not found");

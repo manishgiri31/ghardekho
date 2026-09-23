@@ -59,6 +59,9 @@ test("PostgreSQL-backed auth, property lifecycle, inquiry and visit endpoints", 
     assert.equal(ownerEdit.json().data.status, "PENDING_REVIEW");
 
     await app.db.property.update({ where: { id: propertyId }, data: { status: "PUBLISHED", publishedAt: new Date() } });
+    const publicDetails = await app.inject({ method: "GET", url: `/api/v1/properties/${created.json().data.slug}` });
+    assert.equal(publicDetails.statusCode, 200, publicDetails.body);
+    assert.equal(publicDetails.json().data.id, propertyId);
     const publicSearch = await app.inject({ method: "GET", url: "/api/v1/properties?city=IntegrationCity&propertyType=APARTMENT" });
     assert.equal(publicSearch.statusCode, 200, publicSearch.body);
     assert.equal(publicSearch.json().data.some((item: { id: string }) => item.id === propertyId), true);

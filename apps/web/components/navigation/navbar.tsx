@@ -3,12 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, Search, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { getCurrentUser, logout } from "@/lib/api/auth";
+import type { PublicUser } from "@ghardekho/types";
 
 const links = [
-  { label: "Buy", href: "/buy" },
-  { label: "Rent", href: "/rent" },
+  { label: "Buy", href: "/properties?listingType=SALE" },
+  { label: "Rent", href: "/properties?listingType=RENT" },
   { label: "Sell", href: "/sell" },
   { label: "New projects", href: "/properties?category=projects" },
   { label: "Locations", href: "/#locations" },
@@ -16,6 +18,13 @@ const links = [
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState<PublicUser | null>(null);
+  useEffect(() => {
+    const refresh = () => { getCurrentUser().then(({ data }) => setUser(data.user)).catch(() => setUser(null)); };
+    refresh(); window.addEventListener("ghardekho:session-changed", refresh);
+    return () => window.removeEventListener("ghardekho:session-changed", refresh);
+  }, []);
+  async function signOut() { await logout().catch(() => undefined); setUser(null); window.dispatchEvent(new Event("ghardekho:session-changed")); }
   return (
     <header className="sticky top-0 z-50 border-b border-line/80 bg-white/95 backdrop-blur-sm">
       <div className="container flex h-[76px] items-center justify-between gap-5">
@@ -27,7 +36,7 @@ export function Navbar() {
         </nav>
         <div className="hidden items-center gap-4 lg:flex">
           <Link href="/properties" aria-label="Search properties" className="grid size-10 place-items-center text-ink transition-colors hover:text-forest"><Search size={18} strokeWidth={1.8} /></Link>
-          <Link href="/login" className="text-[13px] font-semibold text-ink hover:text-forest">Log in</Link>
+          {user ? <><span className="max-w-28 truncate text-[13px] text-muted">{user.profile?.name ?? user.email}</span><button onClick={() => void signOut()} className="text-[13px] font-semibold text-ink hover:text-forest">Log out</button></> : <Link href="/login" className="text-[13px] font-semibold text-ink hover:text-forest">Log in</Link>}
           <Button href="/sell" className="min-h-10 px-4 text-[13px]">Post a property <span aria-hidden="true">↗</span></Button>
         </div>
         <div className="flex items-center gap-2 lg:hidden">
@@ -38,7 +47,8 @@ export function Navbar() {
         </div>
       </div>
       {open && <nav id="mobile-navigation" aria-label="Mobile navigation" className="border-t border-line bg-white px-4 py-3 lg:hidden">
-        {[...links, { label: "Log in", href: "/login" }].map((link) => <Link key={link.label} onClick={() => setOpen(false)} href={link.href} className="block border-b border-line/70 py-3.5 text-sm font-medium text-ink last:border-0">{link.label}</Link>)}
+        {[...links, ...(user ? [] : [{ label: "Log in", href: "/login" }]), ...(user ? [] : [{label:"Create account",href:"/register"}])].map((link) => <Link key={link.label} onClick={() => setOpen(false)} href={link.href} className="block border-b border-line/70 py-3.5 text-sm font-medium text-ink last:border-0">{link.label}</Link>)}
+        {user && <button onClick={() => {setOpen(false);void signOut();}} className="block w-full py-3.5 text-left text-sm font-medium text-ink">Log out</button>}
       </nav>}
     </header>
   );

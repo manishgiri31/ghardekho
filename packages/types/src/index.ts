@@ -57,6 +57,7 @@ export type PropertyRecord = {
   latitude: string | null;
   longitude: string | null;
   ownerId: string;
+  owner?: { id: string; profile: { name: string } | null };
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;

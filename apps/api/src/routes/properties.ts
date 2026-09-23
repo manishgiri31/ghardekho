@@ -82,8 +82,9 @@ export async function propertyRoutes(app: FastifyInstance) {
 
   app.get("/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
-    requireUuid(id);
-    const property = await app.db.property.findUnique({ where: { id }, include: { media: { orderBy: { sortOrder: "asc" } }, amenities: { include: { amenity: true } }, owner: { select: { id: true, profile: { select: { name: true } } } } } });
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+    if (!isUuid && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(id)) throw notFound("Property not found.");
+    const property = await app.db.property.findFirst({ where: isUuid ? { id } : { slug: id }, include: { media: { orderBy: { sortOrder: "asc" } }, amenities: { include: { amenity: true } }, owner: { select: { id: true, profile: { select: { name: true } } } } } });
     if (!property) throw notFound("Property not found.");
     if (property.status !== "PUBLISHED") {
       let actor;
