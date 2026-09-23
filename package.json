@@ -1,0 +1,20 @@
+{
+  "name": "ghardekho",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @ghardekho/web",
+    "build": "npm run build --workspace @ghardekho/web",
+    "lint": "npm run lint --workspace @ghardekho/web",
+    "typecheck": "npm run typecheck --workspace @ghardekho/web"
+  },
+  "engines": {
+    "node": ">=20.9"
+  },
+  "devDependencies": {
+    "next": "^16.3.6"
+  }
+}

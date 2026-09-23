@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-forest: #063f35;
+  --color-forest-deep: #032c26;
+  --color-forest-soft: #eaf2ee;
+  --color-gold: #c9973e;
+  --color-gold-light: #e2b866;
+  --color-paper: #fafaf8;
+  --color-ink: #111816;
+  --color-muted: #68736f;
+  --color-line: #e5e9e6;
+  --font-sans: Arial, Helvetica, sans-serif;
+}
+
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: #fff; color: #111816; font-family: Arial, Helvetica, sans-serif; -webkit-font-smoothing: antialiased; }
+::selection { background: #d9e9e0; color: #032c26; }
+a { color: inherit; text-decoration: none; }
+button, input, select { font: inherit; }
+button, a, input, select { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 3px solid #c9973e; outline-offset: 3px; }
+.container { width: min(100% - 48px, 1280px); margin-inline: auto; }
+.section-space { padding-block: 88px; }
+.eyebrow { color: #96702c; font-size: 11px; font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
+.serif-accent { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-style: italic; }
+.image-shade { background: linear-gradient(180deg, rgba(3, 24, 20, .02) 30%, rgba(3, 24, 20, .72) 100%); }
+@media (max-width: 640px) {
+  .container { width: min(100% - 32px, 1280px); }
+  .section-space { padding-block: 60px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
