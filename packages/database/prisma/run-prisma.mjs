@@ -12,7 +12,15 @@ dotenv.config({
 
 const require = createRequire(import.meta.url);
 
-const prismaPackageJson = require.resolve("prisma/package.json");
+let prismaPackageJson;
+try {
+  prismaPackageJson = require.resolve("prisma/package.json");
+} catch (error) {
+  throw new Error(
+    "Unable to resolve the Prisma CLI. Ensure prisma@6.12.0 is installed in the root or database workspace.",
+    { cause: error },
+  );
+}
 const prismaDirectory = dirname(prismaPackageJson);
 const cliPath = resolve(prismaDirectory, "build/index.js");
 
