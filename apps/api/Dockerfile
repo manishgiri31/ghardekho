@@ -11,6 +11,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
+RUN npx prisma generate --schema packages/database/prisma/schema.prisma
 RUN npm run build:api
 FROM node:20-alpine AS runner
 WORKDIR /app
