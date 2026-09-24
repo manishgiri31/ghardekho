@@ -2,9 +2,10 @@
 WORKDIR /app
 COPY package*.json ./
 COPY apps/web/package*.json apps/web/
+COPY packages/database/package*.json packages/database/
 COPY packages/types/package*.json packages/types/
 COPY packages/validation/package*.json packages/validation/
-RUN npm ci
+RUN npm ci --ignore-scripts
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
