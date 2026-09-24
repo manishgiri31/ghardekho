@@ -12,6 +12,8 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NODE_ENV=production
+RUN npm run build --workspace @ghardekho/validation
+RUN npm run build --workspace @ghardekho/types
 RUN npm run build --workspace @ghardekho/web
 FROM node:20-alpine AS runner
 WORKDIR /app
