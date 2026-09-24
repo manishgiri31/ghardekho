@@ -29,6 +29,10 @@
     "typescript": "^5.9.0"
   },
   "optionalDependencies": {
-    "lightningcss-linux-x64-musl": "1.32.0"
+    "@img/sharp-libvips-linuxmusl-x64": "1.3.3",
+    "@img/sharp-linuxmusl-x64": "0.35.4",
+    "@tailwindcss/oxide-linux-x64-musl": "4.3.3",
+    "lightningcss-linux-x64-musl": "1.32.0",
+    "@unrs/resolver-binding-linux-x64-musl": "1.12.2"
   }
 }
