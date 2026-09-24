@@ -17,14 +17,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          node-version: 20
+          cache: npm
 
-      - name: Build API image
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify pinned Prisma versions
+        shell: bash
+        run: |
+          test "$(node -p "require('./packages/database/node_modules/prisma/package.json').version")" = "6.12.0"
+          test "$(node -p "require('./packages/database/node_modules/@prisma/client/package.json').version")" = "6.12.0"
+
+      - name: Build API
+        run: npm run build:api
+
+      - name: Build API Docker image
         run: |
           docker build \
             -f apps/api/Dockerfile \
@@ -32,7 +43,7 @@ jobs:
             -t ghcr.io/manishgiri31/ghardekho-api:latest \
             .
 
-      - name: Build Web image
+      - name: Build Web Docker image
         run: |
           docker build \
             --build-arg NEXT_PUBLIC_API_URL=https://api.ghardekho.tech \
@@ -40,6 +51,13 @@ jobs:
             -t ghcr.io/manishgiri31/ghardekho-web:${{ github.sha }} \
             -t ghcr.io/manishgiri31/ghardekho-web:latest \
             .
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push API image
         run: |
