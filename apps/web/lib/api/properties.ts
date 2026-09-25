@@ -1,5 +1,5 @@
-import type { ApiListSuccess, ApiSuccess, PropertyRecord } from "@ghardekho/types";
-import type { PropertyCreateRequest, PropertySearchRequest, PropertyUpdateRequest } from "@ghardekho/validation";
+import type { ApiListSuccess, ApiSuccess, OwnerPropertyListSuccess, PropertyRecord } from "@ghardekho/types";
+import type { OwnerPropertySearchRequest, PropertyCreateRequest, PropertySearchRequest, PropertyUpdateRequest } from "@ghardekho/validation";
 import { apiRequest } from "./client";
 
 function queryString(filters: PropertySearchRequest) {
@@ -13,6 +13,11 @@ function queryString(filters: PropertySearchRequest) {
 export function searchProperties(filters: PropertySearchRequest = {}) {
   const query = queryString(filters);
   return apiRequest<ApiListSuccess<PropertyRecord>>(`/api/v1/properties${query ? `?${query}` : ""}`);
+}
+
+export function getMyProperties(filters: OwnerPropertySearchRequest = {}) {
+  const query = queryString(filters);
+  return apiRequest<OwnerPropertyListSuccess>(`/api/v1/properties/mine${query ? `?${query}` : ""}`);
 }
 
 export function getProperty(id: string) {

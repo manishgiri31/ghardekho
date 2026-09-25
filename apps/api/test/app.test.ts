@@ -71,11 +71,17 @@ function memoryDatabase() {
       },
       count: async ({ where }: { where: Record<string, unknown> }) => {
         const city = where.city as { equals?: string } | undefined;
-        return properties.filter((item) => item.status === where.status && (!city || String(item.city).toLowerCase() === city.equals?.toLowerCase())).length;
+        return properties.filter((item) => (!where.status || item.status === where.status) && (!where.ownerId || item.ownerId === where.ownerId) && (!city || String(item.city).toLowerCase() === city.equals?.toLowerCase())).length;
       },
       findMany: async ({ where, skip, take }: { where: Record<string, unknown>; skip: number; take: number }) => {
         const city = where.city as { equals?: string } | undefined;
-        return properties.filter((item) => item.status === where.status && (!city || String(item.city).toLowerCase() === city.equals?.toLowerCase())).slice(skip, skip + take);
+        return properties.filter((item) => (!where.status || item.status === where.status) && (!where.ownerId || item.ownerId === where.ownerId) && (!city || String(item.city).toLowerCase() === city.equals?.toLowerCase())).slice(skip, skip + take);
+      },
+      groupBy: async ({ where }: { where: Record<string, unknown> }) => {
+        const matching = properties.filter((item) => item.ownerId === where.ownerId);
+        const counts = new Map<string, number>();
+        for (const item of matching) counts.set(String(item.status), (counts.get(String(item.status)) ?? 0) + 1);
+        return [...counts].map(([status, count]) => ({ status, _count: { _all: count } }));
       },
     },
     inquiry: { create: async ({ data }: { data: Record<string, unknown> }) => ({ id: randomUUID(), ...data }) },
@@ -158,4 +164,53 @@ test("public property search returns only published listings and honors its loca
   assert.equal(response.json().data[0].title, "Published home");
   assert.deepEqual(response.json().pagination, { page: 1, limit: 10, total: 1, totalPages: 1 });
   await app.close();
+});
+
+test("owner property list is authenticated, private, paginated, and summarizes real statuses", async () => {
+  const memory = memoryDatabase();
+  const app = await buildApp({ db: memory.db, logger: false });
+  const property = {
+    title: "A considered home for owner listing", description: "A comfortable residence near parks, shops, and local transit.",
+    propertyType: "APARTMENT", listingType: "SALE", price: 8500000, area: 1050,
+    address: "7 Test Lane", locality: "Test Park", city: "Pune", state: "Maharashtra", pincode: "411001",
+  };
+  const register = async (email: string) => {
+    const response = await app.inject({ method: "POST", url: "/api/v1/auth/register", payload: { email, password: "a-long-enough-test-password", name: "Owner Test" } });
+    return (response.headers["set-cookie"] as string).split(";")[0];
+  };
+  try {
+    const denied = await app.inject({ method: "GET", url: "/api/v1/properties/mine" });
+    assert.equal(denied.statusCode, 401);
+    const ownerCookie = await register("properties-owner@example.com");
+    const otherCookie = await register("properties-other@example.com");
+    const first = await app.inject({ method: "POST", url: "/api/v1/properties", headers: { cookie: ownerCookie, origin: "http://localhost:3000" }, payload: property });
+    const second = await app.inject({ method: "POST", url: "/api/v1/properties", headers: { cookie: ownerCookie, origin: "http://localhost:3000" }, payload: { ...property, title: "Another considered owner property" } });
+    assert.equal(first.statusCode, 201); assert.equal(second.statusCode, 201);
+    memory.properties.find((item) => item.id === first.json().data.id)!.status = "PUBLISHED";
+    memory.properties.find((item) => item.id === second.json().data.id)!.status = "ARCHIVED";
+
+    const pageOne = await app.inject({ method: "GET", url: "/api/v1/properties/mine?page=1&limit=1", headers: { cookie: ownerCookie } });
+    assert.equal(pageOne.statusCode, 200, pageOne.body);
+    assert.equal(pageOne.json().pagination.total, 2);
+    assert.equal(pageOne.json().pagination.totalPages, 2);
+    assert.equal(pageOne.json().data.length, 1);
+    assert.equal(pageOne.json().summary.total, 2);
+    assert.equal(pageOne.json().summary.byStatus.PUBLISHED, 1);
+    assert.equal(pageOne.json().summary.byStatus.ARCHIVED, 1);
+    const pageTwo = await app.inject({ method: "GET", url: "/api/v1/properties/mine?page=2&limit=1", headers: { cookie: ownerCookie } });
+    assert.equal(pageTwo.json().data.length, 1);
+    assert.notEqual(pageOne.json().data[0].id, pageTwo.json().data[0].id);
+
+    const otherOwner = await app.inject({ method: "GET", url: "/api/v1/properties/mine", headers: { cookie: otherCookie } });
+    assert.equal(otherOwner.statusCode, 200);
+    assert.equal(otherOwner.json().data.length, 0);
+    assert.equal(otherOwner.json().summary.total, 0);
+    assert.equal(otherOwner.json().pagination.totalPages, 0);
+    assert.equal((await app.inject({ method: "GET", url: `/api/v1/properties/mine?ownerId=${first.json().data.ownerId}`, headers: { cookie: otherCookie } })).statusCode, 400);
+    assert.equal((await app.inject({ method: "GET", url: "/api/v1/properties/mine?page=0", headers: { cookie: ownerCookie } })).statusCode, 400);
+    assert.equal((await app.inject({ method: "GET", url: "/api/v1/properties/mine?limit=101", headers: { cookie: ownerCookie } })).statusCode, 400);
+
+    const publicList = await app.inject({ method: "GET", url: "/api/v1/properties" });
+    assert.deepEqual(publicList.json().data.map((item: { id: string }) => item.id), [first.json().data.id]);
+  } finally { await app.close(); }
 });

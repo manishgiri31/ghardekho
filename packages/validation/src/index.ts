@@ -75,6 +75,11 @@ export const propertySearchSchema = z.object({
   path: ["maxPrice"], message: "Maximum price must be greater than or equal to minimum price.",
 });
 
+export const ownerPropertySearchSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(12),
+}).strict();
+
 export const inquiryCreateSchema = z.object({
   message: z.string().trim().min(10).max(3000),
   phone: phoneSchema,
@@ -99,6 +104,8 @@ export type PropertyUpdateInput = z.infer<typeof propertyUpdateSchema>;
 export type PropertyUpdateRequest = z.input<typeof propertyUpdateSchema>;
 export type PropertySearchInput = z.infer<typeof propertySearchSchema>;
 export type PropertySearchRequest = Partial<PropertySearchInput>;
+export type OwnerPropertySearchInput = z.infer<typeof ownerPropertySearchSchema>;
+export type OwnerPropertySearchRequest = z.input<typeof ownerPropertySearchSchema>;
 export type InquiryCreateInput = z.infer<typeof inquiryCreateSchema>;
 export type VisitRequestCreateInput = z.infer<typeof visitRequestCreateSchema>;
 export type VisitRequestCreateRequest = z.input<typeof visitRequestCreateSchema>;

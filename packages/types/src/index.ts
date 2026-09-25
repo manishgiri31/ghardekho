@@ -5,6 +5,8 @@ export type {
   PropertyCreateRequest,
   PropertySearchInput,
   PropertySearchRequest,
+  OwnerPropertySearchInput,
+  OwnerPropertySearchRequest,
   PropertyUpdateInput,
   PropertyUpdateRequest,
   RegistrationInput,
@@ -21,6 +23,9 @@ export type ApiListSuccess<T> = {
   success: true;
   data: T[];
   pagination: { page: number; limit: number; total: number; totalPages: number };
+};
+export type OwnerPropertyListSuccess = ApiListSuccess<PropertyRecord> & {
+  summary: { total: number; byStatus: Record<import("@ghardekho/validation").PropertyStatus, number> };
 };
 export type ApiFailure = { success: false; error: { code: string; message: string } };
 export type PublicUser = {

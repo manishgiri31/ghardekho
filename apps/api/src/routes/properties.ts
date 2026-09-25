@@ -1,8 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { Prisma } from "@ghardekho/database";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { inquiryCreateSchema, propertyCreateSchema, propertySearchSchema, propertyUpdateSchema, visitRequestCreateSchema } from "@ghardekho/validation";
-import type { PropertySearchInput } from "@ghardekho/validation";
+import { inquiryCreateSchema, ownerPropertySearchSchema, propertyCreateSchema, propertySearchSchema, propertyUpdateSchema, visitRequestCreateSchema } from "@ghardekho/validation";
+import type { OwnerPropertySearchInput, PropertySearchInput, PropertyStatus } from "@ghardekho/validation";
 import { authenticatedUser } from "../utils/session.js";
 import { badRequest, forbidden, notFound } from "../utils/errors.js";
 
@@ -30,6 +30,24 @@ function requireUuid(id: string) {
 }
 
 export async function propertyRoutes(app: FastifyInstance) {
+  app.get("/mine", async (request, reply) => {
+    const actor = await requireActor(request, app);
+    const filters = parse(ownerPropertySearchSchema, request.query) as OwnerPropertySearchInput;
+    const where: Prisma.PropertyWhereInput = { ownerId: actor.id };
+    const [total, properties, statusGroups] = await app.db.$transaction([
+      app.db.property.count({ where }),
+      app.db.property.findMany({
+        where, orderBy: { createdAt: "desc" }, skip: (filters.page - 1) * filters.limit, take: filters.limit,
+        include: { media: { orderBy: { sortOrder: "asc" } } },
+      }),
+      app.db.property.groupBy({ by: ["status"], where, _count: { _all: true } }),
+    ]);
+    const statuses: PropertyStatus[] = ["DRAFT", "PENDING_REVIEW", "PUBLISHED", "REJECTED", "SOLD", "RENTED", "ARCHIVED"];
+    const byStatus = Object.fromEntries(statuses.map((status) => [status, 0])) as Record<PropertyStatus, number>;
+    for (const group of statusGroups) byStatus[group.status] = group._count._all;
+    return reply.send({ success: true, data: properties, pagination: { page: filters.page, limit: filters.limit, total, totalPages: Math.ceil(total / filters.limit) }, summary: { total, byStatus } });
+  });
+
   app.post("/:id/inquiries", async (request, reply) => {
     const actor = await requireActor(request, app);
     const { id: rawId } = request.params as { id: string };

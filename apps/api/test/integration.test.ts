@@ -49,6 +49,28 @@ test("PostgreSQL-backed auth, property lifecycle, inquiry and visit endpoints", 
     assert.equal(created.statusCode, 201, created.body);
     propertyId = created.json().data.id;
     assert.equal(created.json().data.status, "DRAFT");
+    const secondCreated = await app.inject({ method: "POST", url: "/api/v1/properties", headers: { cookie: ownerCookie, origin }, payload: { ...draft, title: "Another integration test home on quiet road" } });
+    assert.equal(secondCreated.statusCode, 201, secondCreated.body);
+
+    const unauthenticatedOwnerList = await app.inject({ method: "GET", url: "/api/v1/properties/mine" });
+    assert.equal(unauthenticatedOwnerList.statusCode, 401);
+    const ownerPageOne = await app.inject({ method: "GET", url: "/api/v1/properties/mine?page=1&limit=1", headers: { cookie: ownerCookie } });
+    assert.equal(ownerPageOne.statusCode, 200, ownerPageOne.body);
+    assert.equal(ownerPageOne.json().pagination.total, 2);
+    assert.equal(ownerPageOne.json().pagination.totalPages, 2);
+    assert.equal(ownerPageOne.json().data.length, 1);
+    assert.equal(ownerPageOne.json().summary.total, 2);
+    assert.equal(ownerPageOne.json().summary.byStatus.DRAFT, 2);
+    const ownerPageTwo = await app.inject({ method: "GET", url: "/api/v1/properties/mine?page=2&limit=1", headers: { cookie: ownerCookie } });
+    assert.equal(ownerPageTwo.json().data.length, 1);
+    assert.notEqual(ownerPageOne.json().data[0].id, ownerPageTwo.json().data[0].id);
+    const otherOwnerList = await app.inject({ method: "GET", url: "/api/v1/properties/mine", headers: { cookie: otherCookie } });
+    assert.equal(otherOwnerList.statusCode, 200);
+    assert.equal(otherOwnerList.json().data.length, 0);
+    assert.equal(otherOwnerList.json().summary.total, 0);
+    assert.equal((await app.inject({ method: "GET", url: `/api/v1/properties/mine?ownerId=${actor.json().data.user.id}`, headers: { cookie: otherCookie } })).statusCode, 400);
+    assert.equal((await app.inject({ method: "GET", url: "/api/v1/properties/mine?page=0", headers: { cookie: ownerCookie } })).statusCode, 400);
+    assert.equal((await app.inject({ method: "GET", url: "/api/v1/properties/mine?limit=101", headers: { cookie: ownerCookie } })).statusCode, 400);
 
     const hidden = await app.inject({ method: "GET", url: `/api/v1/properties/${propertyId}` });
     assert.equal(hidden.statusCode, 404);
@@ -59,6 +81,9 @@ test("PostgreSQL-backed auth, property lifecycle, inquiry and visit endpoints", 
     assert.equal(ownerEdit.json().data.status, "PENDING_REVIEW");
 
     await app.db.property.update({ where: { id: propertyId }, data: { status: "PUBLISHED", publishedAt: new Date() } });
+    const publishedSummary = await app.inject({ method: "GET", url: "/api/v1/properties/mine", headers: { cookie: ownerCookie } });
+    assert.equal(publishedSummary.json().summary.byStatus.PUBLISHED, 1);
+    assert.equal(publishedSummary.json().summary.byStatus.DRAFT, 1);
     const publicDetails = await app.inject({ method: "GET", url: `/api/v1/properties/${created.json().data.slug}` });
     assert.equal(publicDetails.statusCode, 200, publicDetails.body);
     assert.equal(publicDetails.json().data.id, propertyId);
@@ -81,6 +106,11 @@ test("PostgreSQL-backed auth, property lifecycle, inquiry and visit endpoints", 
     assert.equal(archived.statusCode, 204);
     const noLongerPublic = await app.inject({ method: "GET", url: `/api/v1/properties/${propertyId}` });
     assert.equal(noLongerPublic.statusCode, 404);
+    const archivedSummary = await app.inject({ method: "GET", url: "/api/v1/properties/mine", headers: { cookie: ownerCookie } });
+    assert.equal(archivedSummary.json().summary.byStatus.ARCHIVED, 1);
+    assert.equal(archivedSummary.json().summary.byStatus.PUBLISHED, 0);
+    const publicAfterArchive = await app.inject({ method: "GET", url: "/api/v1/properties?city=IntegrationCity" });
+    assert.equal(publicAfterArchive.json().data.some((item: { id: string }) => item.id === propertyId), false);
 
     const login = await app.inject({ method: "POST", url: "/api/v1/auth/login", payload: { email: ownerEmail, password } });
     assert.equal(login.statusCode, 200, login.body);
