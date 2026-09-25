@@ -34,17 +34,16 @@ export async function propertyRoutes(app: FastifyInstance) {
     const actor = await requireActor(request, app);
     const filters = parse(ownerPropertySearchSchema, request.query) as OwnerPropertySearchInput;
     const where: Prisma.PropertyWhereInput = { ownerId: actor.id };
-    const [total, properties, statusGroups] = await app.db.$transaction([
-      app.db.property.count({ where }),
-      app.db.property.findMany({
-        where, orderBy: { createdAt: "desc" }, skip: (filters.page - 1) * filters.limit, take: filters.limit,
+    const statuses: PropertyStatus[] = ["DRAFT", "PENDING_REVIEW", "PUBLISHED", "REJECTED", "SOLD", "RENTED", "ARCHIVED"];
+    const [properties, statusCounts] = await app.db.$transaction(async (tx) => Promise.all([
+      tx.property.findMany({
+        where, orderBy: [{ createdAt: "desc" }, { id: "asc" }], skip: (filters.page - 1) * filters.limit, take: filters.limit,
         include: { media: { orderBy: { sortOrder: "asc" } } },
       }),
-      app.db.property.groupBy({ by: ["status"], where, _count: { _all: true } }),
-    ]);
-    const statuses: PropertyStatus[] = ["DRAFT", "PENDING_REVIEW", "PUBLISHED", "REJECTED", "SOLD", "RENTED", "ARCHIVED"];
-    const byStatus = Object.fromEntries(statuses.map((status) => [status, 0])) as Record<PropertyStatus, number>;
-    for (const group of statusGroups) byStatus[group.status] = group._count._all;
+      Promise.all(statuses.map(async (status) => [status, await tx.property.count({ where: { ownerId: actor.id, status } })] as const)),
+    ]));
+    const byStatus = Object.fromEntries(statusCounts) as Record<PropertyStatus, number>;
+    const total = statusCounts.reduce((count, [, statusCount]) => count + statusCount, 0);
     return reply.send({ success: true, data: properties, pagination: { page: filters.page, limit: filters.limit, total, totalPages: Math.ceil(total / filters.limit) }, summary: { total, byStatus } });
   });
 

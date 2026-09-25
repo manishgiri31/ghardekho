@@ -2,9 +2,9 @@ import type { ApiListSuccess, ApiSuccess, OwnerPropertyListSuccess, PropertyReco
 import type { OwnerPropertySearchRequest, PropertyCreateRequest, PropertySearchRequest, PropertyUpdateRequest } from "@ghardekho/validation";
 import { apiRequest } from "./client";
 
-function queryString(filters: PropertySearchRequest) {
+function queryString(filters: object) {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(filters)) {
+  for (const [key, value] of Object.entries(filters as Record<string, unknown>)) {
     if (value !== undefined && value !== "") params.set(key, String(value));
   }
   return params.toString();

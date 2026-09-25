@@ -86,7 +86,7 @@ function memoryDatabase() {
     },
     inquiry: { create: async ({ data }: { data: Record<string, unknown> }) => ({ id: randomUUID(), ...data }) },
     visitRequest: { create: async ({ data }: { data: Record<string, unknown> }) => ({ id: randomUUID(), ...data }) },
-    $transaction: async (operations: Promise<unknown>[]) => Promise.all(operations),
+    $transaction: async (operations: Promise<unknown>[] | ((tx: unknown) => Promise<unknown>)) => typeof operations === "function" ? operations(db) : Promise.all(operations),
   };
   return { db: db as unknown as PrismaClient, users, sessions, properties };
 }
