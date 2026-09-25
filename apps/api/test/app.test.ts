@@ -212,5 +212,20 @@ test("owner property list is authenticated, private, paginated, and summarizes r
 
     const publicList = await app.inject({ method: "GET", url: "/api/v1/properties" });
     assert.deepEqual(publicList.json().data.map((item: { id: string }) => item.id), [first.json().data.id]);
+
+    const archivedProperty = memory.properties.find((item) => item.id === second.json().data.id)!;
+    archivedProperty.publishedAt = new Date();
+    const archivedEdit = await app.inject({ method: "PATCH", url: `/api/v1/properties/${archivedProperty.id}`, headers: { cookie: ownerCookie, origin: "http://localhost:3000" }, payload: { title: "Attempt to edit an archived listing" } });
+    assert.equal(archivedEdit.statusCode, 400);
+    assert.equal(archivedProperty.status, "ARCHIVED");
+    assert.equal((await app.inject({ method: "PATCH", url: `/api/v1/properties/${archivedProperty.id}/restore` })).statusCode, 401);
+    assert.equal((await app.inject({ method: "PATCH", url: `/api/v1/properties/${archivedProperty.id}/restore`, headers: { cookie: otherCookie, origin: "http://localhost:3000" } })).statusCode, 403);
+    const restored = await app.inject({ method: "PATCH", url: `/api/v1/properties/${archivedProperty.id}/restore`, headers: { cookie: ownerCookie, origin: "http://localhost:3000" } });
+    assert.equal(restored.statusCode, 200, restored.body);
+    assert.equal(restored.json().data.status, "PENDING_REVIEW");
+    assert.equal(restored.json().data.publishedAt, null);
+    assert.equal((await app.inject({ method: "PATCH", url: `/api/v1/properties/${archivedProperty.id}/restore`, headers: { cookie: ownerCookie, origin: "http://localhost:3000" } })).statusCode, 400);
+    const afterRestorePublicList = await app.inject({ method: "GET", url: "/api/v1/properties" });
+    assert.deepEqual(afterRestorePublicList.json().data.map((item: { id: string }) => item.id), [first.json().data.id]);
   } finally { await app.close(); }
 });

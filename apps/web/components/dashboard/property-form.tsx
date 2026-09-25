@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { propertyCreateSchema, propertyUpdateSchema } from "@ghardekho/validation";
 import type { PropertyRecord } from "@ghardekho/types";
@@ -48,7 +49,7 @@ export function PropertyForm({ mode, property }: { mode: "create" | "edit"; prop
         result = await updateProperty(property!.id, parsed.data);
       }
       const record = result.data;
-      router.push(`/properties/${encodeURIComponent(record.slug || record.id)}`); router.refresh();
+      router.push(`/dashboard/properties?status=${encodeURIComponent(record.status)}`); router.refresh();
     } catch (cause) { setServerError(cause instanceof ApiError ? cause.message : "We couldn’t save this listing. Please try again."); }
     finally { setBusy(false); }
   }
@@ -59,6 +60,6 @@ export function PropertyForm({ mode, property }: { mode: "create" | "edit"; prop
     <section className="border border-line bg-paper p-5 sm:p-7"><p className="eyebrow">04 · More to come</p><h2 className="mt-2 text-lg font-semibold">Amenities and photos</h2><p className="mt-3 text-sm leading-6 text-muted">The API accepts amenity IDs but does not provide an amenity catalogue. Media storage and upload are not implemented. Nothing will be uploaded or attached from this form.</p></section>
     {mode === "edit" && property?.status === "PUBLISHED" && <p className="border-l-2 border-gold bg-white px-4 py-3 text-sm leading-6 text-muted">Saving changes to a published listing returns it to pending review, as required by the current API workflow.</p>}
     {serverError&&<p role="alert" className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{serverError}</p>}
-    <button disabled={busy} className="h-12 w-full bg-forest px-6 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto">{busy?"Saving listing…":mode === "create" ? "Submit property" : "Save changes"}</button>
+    <div className="flex flex-wrap items-center gap-5"><button disabled={busy} className="h-12 w-full bg-forest px-6 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto">{busy?"Saving listing…":mode === "create" ? "Save draft" : "Save changes"}</button><Link href="/dashboard/properties" className="text-sm font-semibold text-forest underline underline-offset-4">Cancel and return to my properties</Link></div>
   </form>;
 }

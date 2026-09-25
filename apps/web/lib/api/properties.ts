@@ -39,3 +39,7 @@ export function updateProperty(id: string, input: PropertyUpdateRequest) {
 export function archiveProperty(id: string) {
   return apiRequest<void>(`/api/v1/properties/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
+
+export function restoreProperty(id: string) {
+  return apiRequest<ApiSuccess<PropertyRecord>>(`/api/v1/properties/${encodeURIComponent(id)}/restore`, { method: "PATCH" });
+}

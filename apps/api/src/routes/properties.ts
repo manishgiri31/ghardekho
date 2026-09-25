@@ -140,9 +140,10 @@ export async function propertyRoutes(app: FastifyInstance) {
     const { id: rawId } = request.params as { id: string };
     const id = requireUuid(rawId);
     const input = parse(propertyUpdateSchema, request.body);
-    const property = await app.db.property.findUnique({ where: { id }, select: { id: true, ownerId: true } });
+    const property = await app.db.property.findUnique({ where: { id }, select: { id: true, ownerId: true, status: true } });
     if (!property) throw notFound("Property not found.");
     if (property.ownerId !== actor.id && !isPrivileged(actor.role)) throw forbidden();
+    if (property.status === "ARCHIVED") throw badRequest("Archived properties must be restored before they can be edited.");
     const { amenityIds, ...fields } = input;
     const updated = await app.db.property.update({
       where: { id },
@@ -154,6 +155,22 @@ export async function propertyRoutes(app: FastifyInstance) {
       include: { media: true, amenities: { include: { amenity: true } } },
     });
     return reply.send({ success: true, data: updated });
+  });
+
+  app.patch("/:id/restore", async (request, reply) => {
+    const actor = await requireActor(request, app);
+    const { id: rawId } = request.params as { id: string };
+    const id = requireUuid(rawId);
+    const property = await app.db.property.findUnique({ where: { id }, select: { id: true, ownerId: true, status: true } });
+    if (!property) throw notFound("Property not found.");
+    if (property.ownerId !== actor.id && !isPrivileged(actor.role)) throw forbidden();
+    if (property.status !== "ARCHIVED") throw badRequest("Only archived properties can be restored.");
+    const restored = await app.db.property.update({
+      where: { id },
+      data: { status: "PENDING_REVIEW", publishedAt: null },
+      include: { media: true, amenities: { include: { amenity: true } } },
+    });
+    return reply.send({ success: true, data: restored });
   });
 
   app.delete("/:id", async (request, reply) => {

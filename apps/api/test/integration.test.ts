@@ -74,6 +74,11 @@ test("PostgreSQL-backed auth, property lifecycle, inquiry and visit endpoints", 
 
     const hidden = await app.inject({ method: "GET", url: `/api/v1/properties/${propertyId}` });
     assert.equal(hidden.statusCode, 404);
+    const ownerUnpublishedDetails = await app.inject({ method: "GET", url: `/api/v1/properties/${propertyId}`, headers: { cookie: ownerCookie } });
+    assert.equal(ownerUnpublishedDetails.statusCode, 200);
+    assert.equal(ownerUnpublishedDetails.json().data.status, "DRAFT");
+    const otherOwnerUnpublishedDetails = await app.inject({ method: "GET", url: `/api/v1/properties/${propertyId}`, headers: { cookie: otherCookie } });
+    assert.equal(otherOwnerUnpublishedDetails.statusCode, 404);
     const wrongOwnerEdit = await app.inject({ method: "PATCH", url: `/api/v1/properties/${propertyId}`, headers: { cookie: otherCookie, origin }, payload: { title: "Attempted unauthorized listing edit" } });
     assert.equal(wrongOwnerEdit.statusCode, 403);
     const ownerEdit = await app.inject({ method: "PATCH", url: `/api/v1/properties/${propertyId}`, headers: { cookie: ownerCookie, origin }, payload: { title: "Updated integration test home near the city park" } });
@@ -111,6 +116,25 @@ test("PostgreSQL-backed auth, property lifecycle, inquiry and visit endpoints", 
     assert.equal(archivedSummary.json().summary.byStatus.PUBLISHED, 0);
     const publicAfterArchive = await app.inject({ method: "GET", url: "/api/v1/properties?city=IntegrationCity" });
     assert.equal(publicAfterArchive.json().data.some((item: { id: string }) => item.id === propertyId), false);
+    const editArchived = await app.inject({ method: "PATCH", url: `/api/v1/properties/${propertyId}`, headers: { cookie: ownerCookie, origin }, payload: { title: "Attempt to edit an archived integration listing" } });
+    assert.equal(editArchived.statusCode, 400);
+
+    await app.db.property.update({ where: { id: propertyId }, data: { publishedAt: new Date() } });
+    const unauthenticatedRestore = await app.inject({ method: "PATCH", url: `/api/v1/properties/${propertyId}/restore`, origin });
+    assert.equal(unauthenticatedRestore.statusCode, 401);
+    const wrongOwnerRestore = await app.inject({ method: "PATCH", url: `/api/v1/properties/${propertyId}/restore`, headers: { cookie: otherCookie, origin } });
+    assert.equal(wrongOwnerRestore.statusCode, 403);
+    const restored = await app.inject({ method: "PATCH", url: `/api/v1/properties/${propertyId}/restore`, headers: { cookie: ownerCookie, origin } });
+    assert.equal(restored.statusCode, 200, restored.body);
+    assert.equal(restored.json().data.status, "PENDING_REVIEW");
+    assert.equal(restored.json().data.publishedAt, null);
+    const restoredSummary = await app.inject({ method: "GET", url: "/api/v1/properties/mine", headers: { cookie: ownerCookie } });
+    assert.equal(restoredSummary.json().summary.byStatus.PENDING_REVIEW, 1);
+    assert.equal(restoredSummary.json().summary.byStatus.ARCHIVED, 0);
+    const publicAfterRestore = await app.inject({ method: "GET", url: "/api/v1/properties?city=IntegrationCity" });
+    assert.equal(publicAfterRestore.json().data.some((item: { id: string }) => item.id === propertyId), false);
+    const duplicateRestore = await app.inject({ method: "PATCH", url: `/api/v1/properties/${propertyId}/restore`, headers: { cookie: ownerCookie, origin } });
+    assert.equal(duplicateRestore.statusCode, 400);
 
     const login = await app.inject({ method: "POST", url: "/api/v1/auth/login", payload: { email: ownerEmail, password } });
     assert.equal(login.statusCode, 200, login.body);
