@@ -2,9 +2,11 @@
   "name": "@ghardekho/web",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
+    "test": "npm run build --workspace @ghardekho/validation && npm run build --workspace @ghardekho/types && node --import tsx/esm --test test/property-discovery.test.mjs",
     "start": "next start --hostname 0.0.0.0",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"

@@ -1,6 +1,7 @@
 import type { ApiListSuccess, ApiSuccess, OwnerPropertyListSuccess, PropertyDetailsRecord, PropertyRecord, PublicPropertyRecord } from "@ghardekho/types";
 import type { OwnerPropertySearchRequest, PropertyCreateRequest, PropertySearchRequest, PropertyUpdateRequest } from "@ghardekho/validation";
 import { apiRequest } from "./client";
+import { discoveryApiQuery } from "../property-discovery";
 
 function queryString(filters: object) {
   const params = new URLSearchParams();
@@ -11,7 +12,7 @@ function queryString(filters: object) {
 }
 
 export function searchProperties(filters: PropertySearchRequest = {}) {
-  const query = queryString(filters);
+  const query = discoveryApiQuery(filters);
   return apiRequest<ApiListSuccess<PublicPropertyRecord>>(`/api/v1/properties${query ? `?${query}` : ""}`);
 }
 
