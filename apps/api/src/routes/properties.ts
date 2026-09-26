@@ -74,17 +74,34 @@ export async function propertyRoutes(app: FastifyInstance) {
 
   app.get("/", async (request, reply) => {
     const filters = parse(propertySearchSchema, request.query) as PropertySearchInput;
+    const minBedrooms = Math.max(...[filters.bedrooms, filters.minBedrooms].filter((value): value is number => value !== undefined), 0);
+    const maxBedrooms = Math.min(...[filters.bedrooms, filters.maxBedrooms].filter((value): value is number => value !== undefined), 30);
+    const hasBedroomRange = filters.bedrooms !== undefined || filters.minBedrooms !== undefined || filters.maxBedrooms !== undefined;
     const where: Prisma.PropertyWhereInput = {
       status: "PUBLISHED",
+      ...(filters.q ? { OR: [
+        { title: { contains: filters.q, mode: "insensitive" } },
+        { description: { contains: filters.q, mode: "insensitive" } },
+        { city: { contains: filters.q, mode: "insensitive" } },
+        { locality: { contains: filters.q, mode: "insensitive" } },
+        { address: { contains: filters.q, mode: "insensitive" } },
+        { state: { contains: filters.q, mode: "insensitive" } },
+        { pincode: { contains: filters.q, mode: "insensitive" } },
+      ] } : {}),
       ...(filters.city ? { city: { equals: filters.city, mode: "insensitive" } } : {}),
       ...(filters.locality ? { locality: { equals: filters.locality, mode: "insensitive" } } : {}),
       ...(filters.propertyType ? { propertyType: filters.propertyType } : {}),
       ...(filters.listingType ? { listingType: filters.listingType } : {}),
-      ...(filters.bedrooms !== undefined ? { bedrooms: filters.bedrooms } : {}),
+      ...(hasBedroomRange ? { bedrooms: { gte: minBedrooms, lte: maxBedrooms } } : {}),
       ...(filters.furnishing ? { furnishing: filters.furnishing } : {}),
       ...(filters.minPrice !== undefined || filters.maxPrice !== undefined ? { price: { ...(filters.minPrice !== undefined ? { gte: filters.minPrice } : {}), ...(filters.maxPrice !== undefined ? { lte: filters.maxPrice } : {}) } } : {}),
+      ...(filters.minArea !== undefined || filters.maxArea !== undefined ? { area: { ...(filters.minArea !== undefined ? { gte: filters.minArea } : {}), ...(filters.maxArea !== undefined ? { lte: filters.maxArea } : {}) } } : {}),
     };
-    const orderBy: Prisma.PropertyOrderByWithRelationInput = filters.sort === "price_asc" ? { price: "asc" } : filters.sort === "price_desc" ? { price: "desc" } : filters.sort === "area" ? { area: "desc" } : { publishedAt: "desc" };
+    const orderBy: Prisma.PropertyOrderByWithRelationInput[] = filters.sort === "price_asc" ? [{ price: "asc" }, { id: "asc" }]
+      : filters.sort === "price_desc" ? [{ price: "desc" }, { id: "asc" }]
+        : filters.sort === "area_asc" ? [{ area: "asc" }, { id: "asc" }]
+          : filters.sort === "area_desc" || filters.sort === "area" ? [{ area: "desc" }, { id: "asc" }]
+            : [{ publishedAt: "desc" }, { id: "asc" }];
     const [total, properties] = await app.db.$transaction([
       app.db.property.count({ where }),
       app.db.property.findMany({
@@ -92,24 +109,41 @@ export async function propertyRoutes(app: FastifyInstance) {
         orderBy,
         skip: (filters.page - 1) * filters.limit,
         take: filters.limit,
-        include: { media: { orderBy: { sortOrder: "asc" } }, amenities: { include: { amenity: true } }, owner: { select: { id: true, profile: { select: { name: true } } } } },
+        select: {
+          id: true, title: true, slug: true, propertyType: true, listingType: true, price: true, area: true, areaUnit: true,
+          bedrooms: true, bathrooms: true, locality: true, city: true,
+          media: { select: { id: true, url: true, type: true, sortOrder: true, altText: true, isPrimary: true }, orderBy: { sortOrder: "asc" } },
+        },
       }),
     ]);
-    return reply.send({ success: true, data: properties, pagination: { page: filters.page, limit: filters.limit, total, totalPages: Math.ceil(total / filters.limit) } });
+    const totalPages = Math.ceil(total / filters.limit);
+    return reply.send({ success: true, data: properties, pagination: { page: filters.page, limit: filters.limit, total, totalPages, hasNextPage: filters.page < totalPages } });
   });
 
   app.get("/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
     if (!isUuid && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(id)) throw notFound("Property not found.");
-    const property = await app.db.property.findFirst({ where: isUuid ? { id } : { slug: id }, include: { media: { orderBy: { sortOrder: "asc" } }, amenities: { include: { amenity: true } }, owner: { select: { id: true, profile: { select: { name: true } } } } } });
+    const property = await app.db.property.findFirst({
+      where: isUuid ? { id } : { slug: id },
+      select: {
+        id: true, title: true, slug: true, description: true, propertyType: true, listingType: true, status: true,
+        price: true, area: true, areaUnit: true, bedrooms: true, bathrooms: true, balconies: true, floorNumber: true, totalFloors: true,
+        furnishing: true, possessionStatus: true, address: true, locality: true, city: true, state: true, pincode: true,
+        latitude: true, longitude: true, ownerId: true, publishedAt: true, createdAt: true, updatedAt: true,
+        media: { select: { id: true, url: true, type: true, sortOrder: true, altText: true, isPrimary: true }, orderBy: { sortOrder: "asc" } },
+        amenities: { select: { amenity: { select: { id: true, name: true, slug: true } } } },
+        owner: { select: { profile: { select: { name: true } } } },
+      },
+    });
     if (!property) throw notFound("Property not found.");
+    let actor;
+    try { actor = await authenticatedUser(request, app.db); } catch { actor = null; }
     if (property.status !== "PUBLISHED") {
-      let actor;
-      try { actor = await authenticatedUser(request, app.db); } catch { throw notFound("Property not found."); }
-      if (actor.id !== property.ownerId && !isPrivileged(actor.role)) throw notFound("Property not found.");
+      if (!actor || (actor.id !== property.ownerId && !isPrivileged(actor.role))) throw notFound("Property not found.");
     }
-    return reply.send({ success: true, data: property });
+    const { status, ownerId, publishedAt, createdAt, updatedAt, ...publicData } = property;
+    return reply.send({ success: true, data: actor?.id === ownerId ? { ...publicData, status, ownerId, publishedAt, createdAt, updatedAt } : property.status === "PUBLISHED" ? publicData : { ...publicData, status } });
   });
 
   app.post("/", async (request, reply) => {

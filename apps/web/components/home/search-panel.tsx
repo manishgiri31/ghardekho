@@ -13,19 +13,19 @@ export function SearchPanel() {
         </button>)}
       </div>
       <form action="/properties" method="get" className="grid gap-2 pt-3 sm:grid-cols-[1.4fr_1fr_1fr_auto] sm:items-center sm:gap-0 sm:pt-4">
-        <input type="hidden" name="intent" value={intent.toLowerCase()} />
+        <input type="hidden" name="listingType" value={intent === "Buy" ? "SALE" : "RENT"} />
         <label className="flex min-h-12 items-center gap-2 border-b border-line px-2 sm:border-b-0 sm:border-r sm:px-3">
           <MapPin size={17} className="shrink-0 text-forest" aria-hidden="true" />
           <span className="sr-only">City or locality</span>
-          <input name="location" placeholder="City, locality or landmark" className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted" />
+          <input name="q" placeholder="City, locality or landmark" className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted" />
         </label>
         <label className="flex min-h-12 items-center border-b border-line px-3 sm:border-b-0 sm:border-r">
           <span className="sr-only">Property type</span>
-          <select name="type" defaultValue="" className="w-full bg-transparent text-sm text-muted outline-none"><option value="">Property type</option><option>Apartment</option><option>Villa</option><option>Independent house</option><option>Plot</option></select>
+          <select name="propertyType" defaultValue="" className="w-full bg-transparent text-sm text-muted outline-none"><option value="">Property type</option><option value="APARTMENT">Apartment</option><option value="VILLA">Villa</option><option value="HOUSE">Independent house</option><option value="PLOT">Plot</option></select>
         </label>
         <label className="flex min-h-12 items-center border-b border-line px-3 sm:border-b-0">
           <span className="sr-only">Budget</span>
-          <select name="budget" defaultValue="" className="w-full bg-transparent text-sm text-muted outline-none"><option value="">Any budget</option><option value="under-50l">Under ₹50 lakh</option><option value="50l-1cr">₹50 lakh – ₹1 crore</option><option value="1cr-plus">₹1 crore and above</option></select>
+          <select name="maxPrice" defaultValue="" className="w-full bg-transparent text-sm text-muted outline-none"><option value="">Any budget</option><option value="5000000">Up to ₹50 lakh</option><option value="10000000">Up to ₹1 crore</option><option value="50000000">Up to ₹5 crore</option></select>
         </label>
         <button type="submit" className="flex min-h-12 items-center justify-center gap-2 bg-forest px-5 text-sm font-semibold text-white transition-colors hover:bg-forest-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"><Search size={16} />Search homes</button>
       </form>

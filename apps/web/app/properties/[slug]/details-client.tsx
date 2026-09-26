@@ -4,20 +4,20 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft, BedDouble, Bath, MapPin, Ruler, ShieldCheck } from "lucide-react";
-import type { PropertyRecord } from "@ghardekho/types";
+import type { PropertyDetailsRecord } from "@ghardekho/types";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ApiError } from "@/lib/api/client";
 import { getProperty } from "@/lib/api/properties";
 import { createInquiry, requestVisit } from "@/lib/api/interactions";
 
-const statusLabel: Record<PropertyRecord["status"], string> = {
+const statusLabel: Record<NonNullable<PropertyDetailsRecord["status"]>, string> = {
   DRAFT: "Draft", PENDING_REVIEW: "Under review", PUBLISHED: "Published", REJECTED: "Needs changes",
   SOLD: "Sold", RENTED: "Rented", ARCHIVED: "Archived",
 };
 
 export default function DetailsClient({ slug }: { slug: string }) {
   const { user } = useAuth();
-  const [property, setProperty] = useState<PropertyRecord | null>(null);
+  const [property, setProperty] = useState<PropertyDetailsRecord | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,7 +34,7 @@ export default function DetailsClient({ slug }: { slug: string }) {
   if (!property) return <div role="status" className="container py-24 text-muted">Loading property details…</div>;
 
   const listing = property;
-  const isPublished = listing.status === "PUBLISHED";
+  const isPublished = listing.status === undefined || listing.status === "PUBLISHED";
   const isOwner = user?.id === listing.ownerId;
   const isOwnerUnpublished = isOwner && !isPublished;
   const photos = listing.media?.filter((media) => media.type === "IMAGE") ?? [];
@@ -71,7 +71,7 @@ export default function DetailsClient({ slug }: { slug: string }) {
     {!isPublished && <section className="mb-7 border-l-2 border-gold bg-white p-5 sm:p-6" aria-label="Private listing status">
       <p className="eyebrow">{isOwner ? "Owner-only listing" : "Private listing"}</p>
       <h1 className="mt-2 text-lg font-semibold">This listing is not public</h1>
-      <p className="mt-2 text-sm leading-6 text-muted">Current status: <strong className="font-semibold text-ink">{statusLabel[property.status]}</strong>. This listing is hidden from public search.</p>
+      <p className="mt-2 text-sm leading-6 text-muted">Current status: <strong className="font-semibold text-ink">{property.status ? statusLabel[property.status] : "Not published"}</strong>. This listing is hidden from public search.</p>
       {isOwner && <div className="mt-4 flex flex-wrap gap-4 text-sm font-semibold">{property.status !== "ARCHIVED" && <Link href={`/dashboard/properties/${property.id}/edit`} className="text-forest underline underline-offset-4">Edit listing</Link>}<Link href="/dashboard/properties" className="text-forest underline underline-offset-4">Manage my properties{property.status === "ARCHIVED" ? " and restore listing" : ""}</Link></div>}
     </section>}
     <div className="grid gap-8 lg:grid-cols-[1fr_360px]">

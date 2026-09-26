@@ -5,12 +5,12 @@ import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { propertyCreateSchema, propertyUpdateSchema } from "@ghardekho/validation";
-import type { PropertyRecord } from "@ghardekho/types";
+import type { PropertyDetailsRecord } from "@ghardekho/types";
 import { createProperty, updateProperty } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/client";
 
 type Values = Record<string, string>;
-const initialValues = (property?: PropertyRecord): Values => ({
+const initialValues = (property?: PropertyDetailsRecord): Values => ({
   title: property?.title ?? "", description: property?.description ?? "", propertyType: property?.propertyType ?? "APARTMENT", listingType: property?.listingType ?? "SALE",
   price: property?.price ?? "", area: property?.area ?? "", areaUnit: property?.areaUnit ?? "SQFT", bedrooms: property?.bedrooms?.toString() ?? "", bathrooms: property?.bathrooms?.toString() ?? "", balconies: property?.balconies?.toString() ?? "",
   furnishing: property?.furnishing ?? "", possessionStatus: property?.possessionStatus ?? "", floorNumber: property?.floorNumber?.toString() ?? "", totalFloors: property?.totalFloors?.toString() ?? "",
@@ -18,7 +18,7 @@ const initialValues = (property?: PropertyRecord): Values => ({
 });
 const optionalNumber = (value: string) => value === "" ? undefined : Number(value);
 
-export function PropertyForm({ mode, property }: { mode: "create" | "edit"; property?: PropertyRecord }) {
+export function PropertyForm({ mode, property }: { mode: "create" | "edit"; property?: PropertyDetailsRecord }) {
   const router = useRouter(); const [values,setValues] = useState<Values>(()=>initialValues(property)); const [errors,setErrors] = useState<Record<string,string>>({}); const [serverError,setServerError] = useState(""); const [busy,setBusy] = useState(false);
   function field(name:string) { return { value: values[name] ?? "", onChange: (event: React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement>)=>setValues((current)=>({...current,[name]:event.target.value})) }; }
   function input(name:string,label:string,opts: {type?:string; required?:boolean; step?:string; min?:string; max?:string; placeholder?:string; inputMode?:"numeric"|"decimal"|"text"}={}) { return <label className="grid gap-2 text-sm font-semibold text-ink">{label}<input {...field(name)} name={name} type={opts.type??"text"} required={opts.required} step={opts.step} min={opts.min} max={opts.max} placeholder={opts.placeholder} inputMode={opts.inputMode} className="h-12 min-w-0 border border-line px-3 font-normal outline-none focus:border-forest" aria-invalid={Boolean(errors[name])}/>{errors[name]&&<span className="text-xs font-normal text-red-700">{errors[name]}</span>}</label>; }

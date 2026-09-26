@@ -22,7 +22,7 @@ export type ApiSuccess<T> = { success: true; data: T };
 export type ApiListSuccess<T> = {
   success: true;
   data: T[];
-  pagination: { page: number; limit: number; total: number; totalPages: number };
+  pagination: { page: number; limit: number; total: number; totalPages: number; hasNextPage?: boolean };
 };
 export type OwnerPropertyListSuccess = ApiListSuccess<PropertyRecord> & {
   summary: { total: number; byStatus: Record<import("@ghardekho/validation").PropertyStatus, number> };
@@ -68,4 +68,24 @@ export type PropertyRecord = {
   updatedAt: string;
   media?: { id: string; url: string; type: "IMAGE" | "VIDEO"; sortOrder: number; altText: string | null; isPrimary: boolean }[];
   amenities?: { amenity: { id: string; name: string; slug: string } }[];
+};
+
+export type PublicPropertyRecord = Pick<PropertyRecord,
+  "id" | "title" | "slug" | "propertyType" | "listingType" | "price" | "area" | "areaUnit" | "bedrooms" | "bathrooms" | "locality" | "city"
+> & { media?: PropertyRecord["media"] };
+
+
+export type PropertyDetailsRecord = Pick<PropertyRecord,
+  "id" | "title" | "slug" | "description" | "propertyType" | "listingType" | "price" | "area" | "areaUnit" |
+  "bedrooms" | "bathrooms" | "balconies" | "floorNumber" | "totalFloors" | "furnishing" | "possessionStatus" |
+  "address" | "locality" | "city" | "state" | "pincode" | "latitude" | "longitude"
+> & {
+  status?: import("@ghardekho/validation").PropertyStatus;
+  ownerId?: string;
+  publishedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  owner?: { profile: { name: string } | null };
+  media?: PropertyRecord["media"];
+  amenities?: PropertyRecord["amenities"];
 };

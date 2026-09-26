@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 import type { PrismaClient } from "@ghardekho/database";
+import { propertySearchSchema } from "@ghardekho/validation";
 import { buildApp } from "../src/app.js";
 
 function memoryDatabase() {
@@ -13,10 +14,28 @@ function memoryDatabase() {
     const output: Record<string, unknown> = {};
     for (const [key, selection] of Object.entries(select)) {
       if (selection === true) output[key] = source[key];
-      if (typeof selection === "object" && selection !== null && key === "profile") output.profile = project(source.profile as Record<string, unknown>, (selection as { select: Record<string, unknown> }).select);
+      if (typeof selection === "object" && selection !== null && "select" in selection) {
+        const nested = (selection as { select: Record<string, unknown> }).select;
+        const value = source[key];
+        if (Array.isArray(value)) output[key] = value.map((item) => project(item as Record<string, unknown>, nested));
+        else if (value && typeof value === "object") output[key] = project(value as Record<string, unknown>, nested);
+      }
     }
     return output;
   };
+  const matchesWhere = (item: Record<string, unknown>, where: Record<string, unknown>) => Object.entries(where).every(([key, filter]) => {
+    if (key === "OR") return (filter as Record<string, unknown>[]).some((clause) => matchesWhere(item, clause));
+    const value = item[key];
+    if (filter && typeof filter === "object") {
+      const conditions = filter as Record<string, unknown>;
+      if ("equals" in conditions && String(value).toLowerCase() !== String(conditions.equals).toLowerCase()) return false;
+      if ("contains" in conditions && !String(value ?? "").toLowerCase().includes(String(conditions.contains).toLowerCase())) return false;
+      if ("gte" in conditions && Number(value) < Number(conditions.gte)) return false;
+      if ("lte" in conditions && Number(value) > Number(conditions.lte)) return false;
+      return true;
+    }
+    return value === filter;
+  });
   const db = {
     user: {
       create: async ({ data, select }: { data: Record<string, unknown>; select?: Record<string, unknown> }) => {
@@ -62,7 +81,10 @@ function memoryDatabase() {
         return property;
       },
       findUnique: async ({ where }: { where: { id: string } }) => properties.find((property) => property.id === where.id) ?? null,
-      findFirst: async ({ where }: { where: { id?: string; slug?: string } }) => properties.find((property) => (where.id && property.id === where.id) || (where.slug && property.slug === where.slug)) ?? null,
+      findFirst: async ({ where, select }: { where: { id?: string; slug?: string }; select?: Record<string, unknown> }) => {
+        const property = properties.find((item) => (where.id && item.id === where.id) || (where.slug && item.slug === where.slug));
+        return property ? project(property, select) : null;
+      },
       update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
         const property = properties.find((item) => item.id === where.id);
         if (!property) throw new Error("Property not found");
@@ -70,12 +92,20 @@ function memoryDatabase() {
         return property;
       },
       count: async ({ where }: { where: Record<string, unknown> }) => {
-        const city = where.city as { equals?: string } | undefined;
-        return properties.filter((item) => (!where.status || item.status === where.status) && (!where.ownerId || item.ownerId === where.ownerId) && (!city || String(item.city).toLowerCase() === city.equals?.toLowerCase())).length;
+        return properties.filter((item) => matchesWhere(item, where)).length;
       },
-      findMany: async ({ where, skip, take }: { where: Record<string, unknown>; skip: number; take: number }) => {
-        const city = where.city as { equals?: string } | undefined;
-        return properties.filter((item) => (!where.status || item.status === where.status) && (!where.ownerId || item.ownerId === where.ownerId) && (!city || String(item.city).toLowerCase() === city.equals?.toLowerCase())).slice(skip, skip + take);
+      findMany: async ({ where, skip, take, orderBy, select }: { where: Record<string, unknown>; skip: number; take: number; orderBy?: Record<string, "asc" | "desc">[]; select?: Record<string, unknown> }) => {
+        const matching = properties.filter((item) => matchesWhere(item, where));
+        if (orderBy) matching.sort((left, right) => {
+          for (const order of orderBy) for (const [field, direction] of Object.entries(order)) {
+            const a = left[field]; const b = right[field];
+            const comparison = a instanceof Date && b instanceof Date ? a.getTime() - b.getTime() : typeof a === "number" && typeof b === "number" ? a - b : String(a ?? "").localeCompare(String(b ?? ""));
+            if (comparison !== 0) return direction === "asc" ? comparison : -comparison;
+          }
+          return 0;
+        });
+        const page = matching.slice(skip, skip + take);
+        return select ? page.map((item) => project(item, select)) : page;
       },
       groupBy: async ({ where }: { where: Record<string, unknown> }) => {
         const matching = properties.filter((item) => item.ownerId === where.ownerId);
@@ -97,6 +127,22 @@ test("health endpoint responds without a database query", async () => {
   assert.equal(response.statusCode, 200);
   assert.deepEqual(response.json(), { status: "ok" });
   await app.close();
+});
+
+test("public property search validates filters, sort, ranges, and bounded pagination", () => {
+  const valid = propertySearchSchema.safeParse({ q: " Delhi ", listingType: "SALE", minBedrooms: "2", maxBedrooms: "4", minArea: "800", maxArea: "1800", sort: "area_asc", page: "2", limit: "20" });
+  assert.equal(valid.success, true);
+  if (valid.success) {
+    assert.equal(valid.data.q, "Delhi");
+    assert.equal(valid.data.minBedrooms, 2);
+    assert.equal(valid.data.sort, "area_asc");
+  }
+  assert.equal(propertySearchSchema.safeParse({ purpose: "BUY" }).success, false);
+  assert.equal(propertySearchSchema.safeParse({ sort: "title_asc" }).success, false);
+  assert.equal(propertySearchSchema.safeParse({ minBedrooms: "4", maxBedrooms: "2" }).success, false);
+  assert.equal(propertySearchSchema.safeParse({ minArea: "1800", maxArea: "800" }).success, false);
+  assert.equal(propertySearchSchema.safeParse({ page: "0" }).success, false);
+  assert.equal(propertySearchSchema.safeParse({ limit: "101" }).success, false);
 });
 
 test("registration, login, logout, and me use an HTTP-only session cookie", async () => {
@@ -152,17 +198,35 @@ test("property creation requires authentication and owners cannot edit another a
 
 test("public property search returns only published listings and honors its location filter", async () => {
   const memory = memoryDatabase();
+  const published = { id: randomUUID(), title: "Published family apartment", description: "A calm home near parks and everyday shops.", slug: "published-family-apartment", city: "Pune", locality: "Kothrud", address: "Green Park Road", state: "Maharashtra", pincode: "411001", propertyType: "APARTMENT", listingType: "SALE", price: 7500000, area: 1200, areaUnit: "SQFT", bedrooms: 3, bathrooms: 2, status: "PUBLISHED", ownerId: randomUUID(), publishedAt: new Date("2026-03-01T00:00:00Z") };
   memory.properties.push(
-    { id: randomUUID(), title: "Published home", city: "Pune", status: "PUBLISHED" },
-    { id: randomUUID(), title: "Draft home", city: "Pune", status: "DRAFT" },
-    { id: randomUUID(), title: "Different city home", city: "Mumbai", status: "PUBLISHED" },
+    published,
+    { ...published, id: randomUUID(), title: "Another published villa", slug: "published-villa", propertyType: "VILLA", listingType: "RENT", price: 15000000, area: 2400, bedrooms: 4, city: "Pune", status: "PUBLISHED", publishedAt: new Date("2026-04-01T00:00:00Z") },
+    ...["DRAFT", "PENDING_REVIEW", "REJECTED", "ARCHIVED"].map((status) => ({ ...published, id: randomUUID(), title: `Published keyword ${status}`, slug: `${status.toLowerCase()}-home`, status })),
+    { ...published, id: randomUUID(), title: "Different city home", city: "Mumbai", slug: "mumbai-home" },
   );
   const app = await buildApp({ db: memory.db, logger: false });
   const response = await app.inject({ method: "GET", url: "/api/v1/properties?city=Pune&page=1&limit=10" });
   assert.equal(response.statusCode, 200);
-  assert.equal(response.json().data.length, 1);
-  assert.equal(response.json().data[0].title, "Published home");
-  assert.deepEqual(response.json().pagination, { page: 1, limit: 10, total: 1, totalPages: 1 });
+  assert.equal(response.json().data.length, 2);
+  assert.equal(response.json().pagination.total, 2);
+  assert.equal(response.json().pagination.hasNextPage, false);
+  assert.equal("ownerId" in response.json().data[0], false);
+  assert.equal("status" in response.json().data[0], false);
+  assert.equal((await app.inject({ method: "GET", url: "/api/v1/properties?q=published%20keyword" })).json().pagination.total, 0);
+  const filtered = await app.inject({ method: "GET", url: "/api/v1/properties?q=GREEN%20PARK&city=Pune&listingType=SALE&propertyType=APARTMENT&minPrice=5000000&maxPrice=10000000&minBedrooms=2&maxBedrooms=3&minArea=1000&maxArea=1500" });
+  assert.equal(filtered.statusCode, 200, filtered.body);
+  assert.equal(filtered.json().pagination.total, 1);
+  assert.equal(filtered.json().data[0].slug, "published-family-apartment");
+  const pageOne = await app.inject({ method: "GET", url: "/api/v1/properties?city=Pune&page=1&limit=1&sort=price_asc" });
+  const pageTwo = await app.inject({ method: "GET", url: "/api/v1/properties?city=Pune&page=2&limit=1&sort=price_asc" });
+  assert.equal(pageOne.json().pagination.hasNextPage, true);
+  assert.equal(pageTwo.json().pagination.hasNextPage, false);
+  assert.notEqual(pageOne.json().data[0].id, pageTwo.json().data[0].id);
+  const expensiveFirst = await app.inject({ method: "GET", url: "/api/v1/properties?city=Pune&sort=price_desc" });
+  assert.equal(expensiveFirst.json().data[0].slug, "published-villa");
+  const largestFirst = await app.inject({ method: "GET", url: "/api/v1/properties?city=Pune&sort=area_desc" });
+  assert.equal(largestFirst.json().data[0].slug, "published-villa");
   await app.close();
 });
 

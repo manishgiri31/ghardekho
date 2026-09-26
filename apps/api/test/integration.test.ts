@@ -95,6 +95,37 @@ test("PostgreSQL-backed auth, property lifecycle, inquiry and visit endpoints", 
     const publicSearch = await app.inject({ method: "GET", url: "/api/v1/properties?city=IntegrationCity&propertyType=APARTMENT" });
     assert.equal(publicSearch.statusCode, 200, publicSearch.body);
     assert.equal(publicSearch.json().data.some((item: { id: string }) => item.id === propertyId), true);
+    const publicCard = publicSearch.json().data.find((item: { id: string }) => item.id === propertyId);
+    assert.ok(publicCard);
+    assert.equal("ownerId" in publicCard, false);
+    assert.equal("status" in publicCard, false);
+
+    const villaCreated = await app.inject({ method: "POST", url: "/api/v1/properties", headers: { cookie: ownerCookie, origin }, payload: {
+      ...draft, title: "Integration lake villa discovery listing", propertyType: "VILLA", listingType: "RENT", price: 18000000, area: 2400, bedrooms: 3,
+    } });
+    assert.equal(villaCreated.statusCode, 201, villaCreated.body);
+    const villaId = villaCreated.json().data.id as string;
+    await app.db.property.update({ where: { id: villaId }, data: { status: "PUBLISHED", publishedAt: new Date() } });
+    const filteredDiscovery = await app.inject({ method: "GET", url: "/api/v1/properties?q=lake%20villa&city=IntegrationCity&listingType=RENT&propertyType=VILLA&minPrice=10000000&minBedrooms=3&minArea=2000" });
+    assert.equal(filteredDiscovery.statusCode, 200, filteredDiscovery.body);
+    assert.deepEqual(filteredDiscovery.json().data.map((item: { id: string }) => item.id), [villaId]);
+    const discoveryPageOne = await app.inject({ method: "GET", url: "/api/v1/properties?city=IntegrationCity&limit=1&page=1&sort=price_desc" });
+    const discoveryPageTwo = await app.inject({ method: "GET", url: "/api/v1/properties?city=IntegrationCity&limit=1&page=2&sort=price_desc" });
+    assert.equal(discoveryPageOne.json().pagination.hasNextPage, true);
+    assert.equal(discoveryPageOne.json().data[0].id, villaId);
+    assert.equal(discoveryPageTwo.json().pagination.hasNextPage, false);
+    assert.equal(discoveryPageTwo.json().data[0].id, propertyId);
+    const discoveryAreaSort = await app.inject({ method: "GET", url: "/api/v1/properties?city=IntegrationCity&sort=area_desc" });
+    assert.equal(discoveryAreaSort.json().data[0].id, villaId);
+
+    const hiddenDiscovery = await app.inject({ method: "POST", url: "/api/v1/properties", headers: { cookie: ownerCookie, origin }, payload: {
+      ...draft, title: "Unique private discovery marker property",
+    } });
+    assert.equal(hiddenDiscovery.statusCode, 201, hiddenDiscovery.body);
+    await app.db.property.update({ where: { id: hiddenDiscovery.json().data.id }, data: { status: "PENDING_REVIEW" } });
+    const hiddenSearch = await app.inject({ method: "GET", url: "/api/v1/properties?q=private%20discovery%20marker" });
+    assert.equal(hiddenSearch.statusCode, 200, hiddenSearch.body);
+    assert.equal(hiddenSearch.json().pagination.total, 0);
 
     const inquiry = await app.inject({
       method: "POST", url: `/api/v1/properties/${propertyId}/inquiries`, headers: { cookie: otherCookie, origin },

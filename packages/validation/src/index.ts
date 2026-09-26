@@ -59,21 +59,37 @@ export const propertyUpdateSchema = propertyFieldsSchema.partial().omit({ amenit
   path: ["floorNumber"], message: "Floor number cannot exceed total floors.",
 });
 
+const blankToUndefined = (value: unknown) => value === "" ? undefined : value;
+const optionalSearchNumber = (schema: z.ZodType<number>) => z.preprocess(blankToUndefined, schema.optional());
+const optionalSearchEnum = <T extends z.ZodType<string>>(schema: T) => z.preprocess(blankToUndefined, schema.optional());
+
 export const propertySearchSchema = z.object({
-  city: z.string().trim().min(2).max(100).optional(),
-  locality: z.string().trim().min(2).max(120).optional(),
-  propertyType: propertyTypeSchema.optional(),
-  listingType: listingTypeSchema.optional(),
-  minPrice: z.coerce.number().finite().nonnegative().optional(),
-  maxPrice: z.coerce.number().finite().positive().optional(),
-  bedrooms: z.coerce.number().int().min(0).max(30).optional(),
-  furnishing: furnishingSchema.optional(),
+  q: z.preprocess(blankToUndefined, z.string().trim().min(1).max(200).optional()),
+  city: z.preprocess(blankToUndefined, z.string().trim().min(2).max(100).optional()),
+  locality: z.preprocess(blankToUndefined, z.string().trim().min(2).max(120).optional()),
+  propertyType: optionalSearchEnum(propertyTypeSchema),
+  listingType: optionalSearchEnum(listingTypeSchema),
+  minPrice: optionalSearchNumber(z.coerce.number().finite().nonnegative()),
+  maxPrice: optionalSearchNumber(z.coerce.number().finite().positive()),
+  bedrooms: optionalSearchNumber(z.coerce.number().int().min(0).max(30)),
+  minBedrooms: optionalSearchNumber(z.coerce.number().int().min(0).max(30)),
+  maxBedrooms: optionalSearchNumber(z.coerce.number().int().min(0).max(30)),
+  minArea: optionalSearchNumber(z.coerce.number().finite().positive().max(10_000_000)),
+  maxArea: optionalSearchNumber(z.coerce.number().finite().positive().max(10_000_000)),
+  furnishing: optionalSearchEnum(furnishingSchema),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  sort: z.enum(["newest", "price_asc", "price_desc", "area"]).default("newest"),
-}).strict().refine((value) => value.minPrice === undefined || value.maxPrice === undefined || value.minPrice <= value.maxPrice, {
-  path: ["maxPrice"], message: "Maximum price must be greater than or equal to minimum price.",
-});
+  sort: z.preprocess(blankToUndefined, z.enum(["newest", "price_asc", "price_desc", "area_asc", "area_desc", "area"]).default("newest")),
+}).strict()
+  .refine((value) => value.minPrice === undefined || value.maxPrice === undefined || value.minPrice <= value.maxPrice, {
+    path: ["maxPrice"], message: "Maximum price must be greater than or equal to minimum price.",
+  })
+  .refine((value) => value.minBedrooms === undefined || value.maxBedrooms === undefined || value.minBedrooms <= value.maxBedrooms, {
+    path: ["maxBedrooms"], message: "Maximum bedrooms must be greater than or equal to minimum bedrooms.",
+  })
+  .refine((value) => value.minArea === undefined || value.maxArea === undefined || value.minArea <= value.maxArea, {
+    path: ["maxArea"], message: "Maximum area must be greater than or equal to minimum area.",
+  });
 
 export const ownerPropertySearchSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
