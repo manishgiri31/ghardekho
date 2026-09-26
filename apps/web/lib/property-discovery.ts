@@ -10,7 +10,15 @@ const apiFilterKeys = [
   "minBedrooms", "maxBedrooms", "minArea", "maxArea", "furnishing", "page", "limit", "sort",
 ] as const satisfies readonly (keyof PropertySearchInput)[];
 
+const landingCategories = {
+  apartments: { label: "Apartments", propertyType: "APARTMENT" },
+  villas: { label: "Villas", propertyType: "VILLA" },
+  homes: { label: "Independent homes", propertyType: "HOUSE" },
+  plots: { label: "Plots & land", propertyType: "PLOT" },
+  projects: { label: "New projects", propertyType: undefined },
+} as const;
 
+export type LandingCategory = keyof typeof landingCategories;
 
 export function parseDiscoveryQuery(query: string) {
   const params = new URLSearchParams(query);
@@ -46,4 +54,15 @@ export function getDiscoveryState({ loading, error, result }: { loading: boolean
 
 export function propertyDetailsHref(slug: string) {
   return `/properties/${encodeURIComponent(slug)}`;
+}
+
+export function propertyCategoryHref(category: LandingCategory) {
+  if (category === "projects") return "/properties?category=projects";
+  const config = landingCategories[category];
+  return `/properties?propertyType=${config.propertyType}`;
+}
+
+export function getLandingCategory(query: string) {
+  const category = new URLSearchParams(query).get("category");
+  return category && category in landingCategories ? landingCategories[category as LandingCategory] : null;
 }

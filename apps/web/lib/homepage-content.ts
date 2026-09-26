@@ -8,10 +8,10 @@ export const locations = [
 ];
 
 export const propertyTypes = [
-  { name: "Apartments", count: "Find your own corner of the city", image: "photo-1600607687939-ce8a6c25118c", url: "/properties?propertyType=APARTMENT" },
-  { name: "Villas", count: "A little more room to breathe", image: "photo-1600047509807-ba8f99d2cdde", url: "/properties?propertyType=VILLA" },
-  { name: "Independent homes", count: "Space that’s entirely yours", image: "photo-1600566753086-00f18fb6b3ea", url: "/properties?propertyType=HOUSE" },
-  { name: "Plots & land", count: "Start with a place to imagine", image: "photo-1500382017468-9049fed747ef", url: "/properties?propertyType=PLOT" },
+  { name: "Apartments", count: "Find your own corner of the city", image: "photo-1600607687939-ce8a6c25118c" },
+  { name: "Villas", count: "A little more room to breathe", image: "photo-1600047509807-ba8f99d2cdde" },
+  { name: "Independent homes", count: "Space that’s entirely yours", image: "photo-1600566753086-00f18fb6b3ea" },
+  { name: "Plots & land", count: "Start with a place to imagine", image: "photo-1500382017468-9049fed747ef" },
 ];
 
 export const faqs = [

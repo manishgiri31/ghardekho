@@ -14,7 +14,7 @@ export default function DashboardPage() {
     <p className="eyebrow">Your GharDekho</p>
     <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">Welcome, {user?.profile?.name || "home seeker"}.</h1>
     <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">Your account and property activity, gathered in one place.</p>
-    {loading && !data ? <div role="status" className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[0,1,2,3,4].map((n) => <div key={n} className="flex h-[92px] flex-col justify-center border border-line bg-white px-4 sm:px-5"><div className="h-3 w-16 animate-pulse rounded-[2px] bg-paper" /><div className="mt-3 h-7 w-8 animate-pulse rounded-[2px] bg-paper" /></div>)}</div>
+    {loading && !data ? <div role="status" className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[0,1,2,3,4].map((n) => <div key={n} className="h-24 animate-pulse bg-white" />)}</div>
     : error ? <div role="alert" className="mt-8 border border-red-200 bg-white p-6"><h2 className="font-semibold">{unauthorized ? "Your session has expired" : "Property data is unavailable"}</h2><p className="mt-2 text-sm text-muted">{error}</p>{!unauthorized && <button onClick={() => void retry()} className="mt-4 text-sm font-semibold text-forest underline">Try again</button>}{unauthorized && <Link href="/login" className="mt-4 inline-block text-sm font-semibold text-forest underline">Log in again</Link>}</div>
     : <>
       <dl className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">{stats.map(([label,value]) => <div key={label} className="border border-line bg-white px-4 py-4 sm:px-5"><dt className="text-xs text-muted">{label}</dt><dd className="mt-2 text-2xl font-semibold text-ink">{value ?? 0}</dd></div>)}</dl>
