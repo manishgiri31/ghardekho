@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Footer } from "@/components/layout/footer";
 import { Navbar } from "@/components/navigation/navbar";
+import { Suspense } from "react";
 import { AuthProvider } from "@/components/auth/auth-provider";
-
 const siteUrl = "https://ghardekho.tech";
 
 export const metadata: Metadata = {
@@ -35,7 +35,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <a className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:bg-white focus:p-3" href="#main">Skip to content</a>
         <AuthProvider>
-          <Navbar />
+          <Suspense fallback={<div className="h-[76px] border-b border-line bg-white/95" />}>
+            <Navbar />
+          </Suspense>
           <main id="main">{children}</main>
           <Footer />
         </AuthProvider>
