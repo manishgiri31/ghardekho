@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Bath, MapPin, SlidersHorizontal } from "lucide-react";
+import { ArrowUpRight, Bath, Heart, MapPin, Search, SlidersHorizontal } from "lucide-react";
 import type { PropertySearchInput } from "@ghardekho/validation";
 import type { ApiListSuccess, PublicPropertyRecord } from "@ghardekho/types";
 import { ApiError } from "@/lib/api/client";
@@ -30,21 +30,29 @@ const money = (price: string, type: string) => {
 function PropertyCard({ property }: { property: PublicPropertyRecord }) {
   const photo = property.media?.find((item) => item.isPrimary)?.url ?? property.media?.find((item) => item.type === "IMAGE")?.url;
   const altText = property.media?.find((item) => item.url === photo)?.altText || property.title;
-  return <article className="group overflow-hidden border border-line bg-white transition-shadow hover:shadow-[0_14px_40px_rgba(5,36,29,.11)]">
-    <Link href={propertyDetailsHref(property.slug)} className="block">
-      <div className="relative aspect-[1.48] bg-forest-soft">
-        {photo ? <Image src={photo} alt={altText} fill unoptimized sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-cover transition-transform duration-500 group-hover:scale-[1.025]" /> : <div className="grid h-full place-items-center text-sm text-muted">Photos coming soon</div>}
-        <span className="absolute left-4 top-4 bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.12em] text-forest">For {property.listingType === "RENT" ? "rent" : "sale"}</span>
+  return <article className="group relative flex flex-col overflow-hidden rounded-[3px] border border-line bg-white transition-all duration-300 hover:-translate-y-1 hover:border-line-dark hover:shadow-[0_12px_30px_rgba(5,36,29,.06)]">
+    <Link href={propertyDetailsHref(property.slug)} className="flex flex-1 flex-col outline-none">
+      <div className="relative aspect-[4/3] overflow-hidden bg-paper">
+        {photo ? <Image src={photo} alt={altText} fill unoptimized sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-cover transition-transform duration-700 group-hover:scale-[1.03]" /> : <div className="grid h-full place-items-center text-sm text-muted">Photos coming soon</div>}
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4">
+          <span className="rounded-[2px] bg-white/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-forest shadow-sm backdrop-blur-md">For {property.listingType === "RENT" ? "rent" : "sale"}</span>
+          <button onClick={(e) => e.preventDefault()} aria-label="Save home" className="grid size-8 place-items-center rounded-full bg-white/90 text-ink shadow-sm backdrop-blur-md transition-colors hover:bg-white hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"><Heart size={15} strokeWidth={2} /></button>
+        </div>
       </div>
-      <div className="p-5">
-        <p className="text-xl font-semibold tracking-tight text-ink">{money(property.price, property.listingType)}</p>
-        <h2 className="mt-2 line-clamp-1 text-[15px] font-semibold text-ink">{property.title}</h2>
-        <p className="mt-1 flex items-center gap-1.5 text-sm text-muted"><MapPin size={14} />{property.locality}, {property.city}</p>
-        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line pt-4 text-xs text-muted">
-          {property.bedrooms !== null && <span>{property.bedrooms} bed</span>}
-          {property.bathrooms !== null && <span className="flex items-center gap-1"><Bath size={13} />{property.bathrooms} bath</span>}
-          <span>{Number(property.area).toLocaleString("en-IN")} {property.areaUnit.toLowerCase()}</span>
-          <span className="ml-auto">{property.propertyType.replaceAll("_", " ")}</span>
+      <div className="flex flex-1 flex-col p-5">
+        <p className="text-[22px] font-medium tracking-tight text-ink">{money(property.price, property.listingType)}</p>
+        <h2 className="mt-1.5 line-clamp-1 text-[15px] font-semibold text-ink">{property.title}</h2>
+        <p className="mt-1 flex items-center gap-1.5 text-[13px] text-muted"><MapPin size={13} />{property.locality}, {property.city}</p>
+        <div className="mt-auto pt-6">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line pt-4 text-[13px] text-muted">
+            {property.bedrooms !== null && <span className="font-medium text-ink">{property.bedrooms} <span className="font-normal text-muted">bed</span></span>}
+            {property.bathrooms !== null && <span className="font-medium text-ink flex items-center gap-1"><Bath size={13} strokeWidth={1.5} className="text-muted" />{property.bathrooms} <span className="font-normal text-muted">bath</span></span>}
+            <span className="font-medium text-ink">{Number(property.area).toLocaleString("en-IN")} <span className="font-normal text-muted">{property.areaUnit.toLowerCase()}</span></span>
+          </div>
+          <div className="mt-5 flex items-center justify-between">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted">{property.propertyType.replaceAll("_", " ")}</span>
+            <span className="flex items-center gap-1.5 text-[13px] font-semibold text-forest transition-colors group-hover:text-forest-deep">View home <ArrowUpRight size={14} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></span>
+          </div>
         </div>
       </div>
     </Link>
@@ -52,16 +60,41 @@ function PropertyCard({ property }: { property: PublicPropertyRecord }) {
 }
 
 function FilterFields({ filters }: { filters: PropertySearchInput }) {
-  return <>
-    <label className="grid gap-2 text-xs font-semibold text-muted">City<input name="city" defaultValue={filters.city ?? ""} placeholder="Any city" className="h-11 border border-line px-3 text-sm font-normal text-ink" /></label>
-    <label className="grid gap-2 text-xs font-semibold text-muted">Locality<input name="locality" defaultValue={filters.locality ?? ""} placeholder="Neighbourhood" className="h-11 border border-line px-3 text-sm font-normal text-ink" /></label>
-    <label className="grid gap-2 text-xs font-semibold text-muted">Listing<select name="listingType" defaultValue={filters.listingType ?? ""} className="h-11 border border-line bg-white px-3 text-sm font-normal text-ink"><option value="">Buy or rent</option><option value="SALE">For sale</option><option value="RENT">For rent</option></select></label>
-    <label className="grid gap-2 text-xs font-semibold text-muted">Property type<select name="propertyType" defaultValue={filters.propertyType ?? ""} className="h-11 border border-line bg-white px-3 text-sm font-normal text-ink"><option value="">All types</option>{propertyTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-    <div className="grid grid-cols-2 gap-2"><label className="grid gap-2 text-xs font-semibold text-muted">Min price<input name="minPrice" type="number" min="0" defaultValue={filters.minPrice ?? ""} className="h-11 min-w-0 border border-line px-3 text-sm font-normal text-ink" /></label><label className="grid gap-2 text-xs font-semibold text-muted">Max price<input name="maxPrice" type="number" min="0" defaultValue={filters.maxPrice ?? ""} className="h-11 min-w-0 border border-line px-3 text-sm font-normal text-ink" /></label></div>
-    <label className="grid gap-2 text-xs font-semibold text-muted">Bedrooms<select name="bedrooms" defaultValue={filters.bedrooms ?? ""} className="h-11 border border-line bg-white px-3 text-sm font-normal text-ink"><option value="">Any number</option><option value="0">Studio</option>{[1, 2, 3, 4, 5, 6].map((count) => <option key={count} value={count}>{count} {count === 1 ? "bedroom" : "bedrooms"}</option>)}</select></label>
-    <div className="grid grid-cols-2 gap-2"><label className="grid gap-2 text-xs font-semibold text-muted">Min area<input name="minArea" type="number" min="0.01" step="any" defaultValue={filters.minArea ?? ""} className="h-11 min-w-0 border border-line px-3 text-sm font-normal text-ink" /></label><label className="grid gap-2 text-xs font-semibold text-muted">Max area<input name="maxArea" type="number" min="0.01" step="any" defaultValue={filters.maxArea ?? ""} className="h-11 min-w-0 border border-line px-3 text-sm font-normal text-ink" /></label></div>
-    <label className="grid gap-2 text-xs font-semibold text-muted">Furnishing<select name="furnishing" defaultValue={filters.furnishing ?? ""} className="h-11 border border-line bg-white px-3 text-sm font-normal text-ink"><option value="">Any</option><option value="UNFURNISHED">Unfurnished</option><option value="SEMI_FURNISHED">Semi-furnished</option><option value="FURNISHED">Furnished</option></select></label>
-  </>;
+  return <div className="grid gap-6">
+    <div className="grid gap-3">
+      <label className="text-[13px] font-semibold tracking-wide text-ink">City</label>
+      <input name="city" defaultValue={filters.city ?? ""} placeholder="e.g. Mumbai" className="h-10 w-full rounded-[3px] border border-line bg-transparent px-3 text-sm text-ink outline-none transition-colors focus:border-forest focus:ring-1 focus:ring-forest" />
+    </div>
+    <div className="grid gap-3">
+      <label className="text-[13px] font-semibold tracking-wide text-ink">Locality</label>
+      <input name="locality" defaultValue={filters.locality ?? ""} placeholder="e.g. Bandra West" className="h-10 w-full rounded-[3px] border border-line bg-transparent px-3 text-sm text-ink outline-none transition-colors focus:border-forest focus:ring-1 focus:ring-forest" />
+    </div>
+    <div className="grid gap-3">
+      <label className="text-[13px] font-semibold tracking-wide text-ink">Listing type</label>
+      <select name="listingType" defaultValue={filters.listingType ?? ""} className="h-10 w-full rounded-[3px] border border-line bg-transparent px-3 text-sm text-ink outline-none transition-colors focus:border-forest focus:ring-1 focus:ring-forest">
+        <option value="">Any</option><option value="SALE">For sale</option><option value="RENT">For rent</option>
+      </select>
+    </div>
+    <div className="grid gap-3">
+      <label className="text-[13px] font-semibold tracking-wide text-ink">Property type</label>
+      <select name="propertyType" defaultValue={filters.propertyType ?? ""} className="h-10 w-full rounded-[3px] border border-line bg-transparent px-3 text-sm text-ink outline-none transition-colors focus:border-forest focus:ring-1 focus:ring-forest">
+        <option value="">Any</option>{propertyTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      </select>
+    </div>
+    <div className="grid gap-3">
+      <label className="text-[13px] font-semibold tracking-wide text-ink">Bedrooms</label>
+      <select name="bedrooms" defaultValue={filters.bedrooms ?? ""} className="h-10 w-full rounded-[3px] border border-line bg-transparent px-3 text-sm text-ink outline-none transition-colors focus:border-forest focus:ring-1 focus:ring-forest">
+        <option value="">Any</option><option value="0">Studio</option>{[1, 2, 3, 4, 5, 6].map((count) => <option key={count} value={count}>{count}+</option>)}
+      </select>
+    </div>
+    <div className="grid gap-3">
+      <label className="text-[13px] font-semibold tracking-wide text-ink">Budget</label>
+      <div className="grid grid-cols-2 gap-2">
+        <input name="minPrice" type="number" min="0" defaultValue={filters.minPrice ?? ""} placeholder="Min" className="h-10 w-full rounded-[3px] border border-line bg-transparent px-3 text-sm text-ink outline-none transition-colors focus:border-forest focus:ring-1 focus:ring-forest" />
+        <input name="maxPrice" type="number" min="0" defaultValue={filters.maxPrice ?? ""} placeholder="Max" className="h-10 w-full rounded-[3px] border border-line bg-transparent px-3 text-sm text-ink outline-none transition-colors focus:border-forest focus:ring-1 focus:ring-forest" />
+      </div>
+    </div>
+  </div>;
 }
 
 function FilterForm({ filters, queryKey, mobile = false, onApplied }: { filters: PropertySearchInput; queryKey: string; mobile?: boolean; onApplied?: () => void }) {
@@ -134,9 +167,26 @@ export function Discovery() {
         <aside className="hidden h-fit border border-line bg-white p-5 lg:block"><h2 className="mb-5 text-base font-semibold">Refine your search</h2><FilterForm filters={filters} queryKey={queryKey} /></aside>
         <section aria-live="polite">
           {viewState === "error" ? <div className="border border-red-200 bg-red-50 p-8 text-center"><h2 className="font-semibold">We couldn’t load these homes</h2><p className="mt-2 text-sm text-muted">{error}</p>{parsed.success && <button onClick={() => setRetryCount((count) => count + 1)} className="mt-4 font-semibold text-forest underline">Try again</button>}</div>
-            : viewState === "loading" ? <div role="status" className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{[0, 1, 2, 3, 4, 5].map((item) => <div key={item} className="animate-pulse"><div className="aspect-[1.48] bg-paper" /><div className="mt-4 h-5 w-1/2 bg-paper" /></div>)}</div>
+            : viewState === "loading" ? <div role="status" className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{[0, 1, 2, 3, 4, 5].map((item) => <div key={item} className="flex flex-col overflow-hidden rounded-[3px] border border-line bg-white"><div className="aspect-[4/3] animate-pulse bg-paper" /><div className="flex flex-1 flex-col p-5"><div className="h-7 w-1/3 animate-pulse rounded-sm bg-paper" /><div className="mt-2.5 h-5 w-3/4 animate-pulse rounded-sm bg-paper" /><div className="mt-2 h-4 w-1/2 animate-pulse rounded-sm bg-paper" /><div className="mt-auto pt-6"><div className="flex gap-3 border-t border-line pt-4"><div className="h-4 w-16 animate-pulse rounded-sm bg-paper" /><div className="h-4 w-16 animate-pulse rounded-sm bg-paper" /></div></div></div></div>)}</div>
               : viewState === "results" ? <><div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{result?.data.map((property) => <PropertyCard key={property.id} property={property} />)}</div><div className="mt-9 flex items-center justify-between border-t border-line pt-5"><span className="text-sm text-muted">Page {result?.pagination.page} of {Math.max(1, result?.pagination.totalPages ?? 1)}</span><div className="flex gap-2"><button disabled={filters.page <= 1} onClick={() => setPage(Math.max(1, filters.page - 1))} className="h-10 border border-line px-4 text-sm disabled:opacity-40">Previous</button><button disabled={result?.pagination.hasNextPage === false || filters.page >= (result?.pagination.totalPages ?? 1)} onClick={() => setPage(filters.page + 1)} className="h-10 border border-line px-4 text-sm disabled:opacity-40">Next</button></div></div></>
-                : <div className="border border-line bg-paper px-6 py-16 text-center"><p className="eyebrow">A fresh start</p><h2 className="mt-3 text-xl font-semibold">No matching published properties found.</h2><p className="mt-2 text-sm text-muted">Try broadening your search or clearing some filters.</p><Link href="/properties" className="mt-5 inline-block font-semibold text-forest underline">Clear search and filters</Link></div>}
+                : <div className="flex flex-col items-center justify-center border border-line bg-white px-6 py-20 text-center">
+                  <div className="mb-6 flex size-16 items-center justify-center rounded-full bg-forest-soft text-forest">
+                    <Search size={28} strokeWidth={1.5} />
+                  </div>
+                  <h2 className="text-2xl font-semibold tracking-tight text-ink">No homes match this search</h2>
+                  <div className="mt-4 max-w-md text-sm leading-6 text-muted">
+                    <p>Try adjusting your search by:</p>
+                    <ul className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1">
+                      <li>• Removing a filter</li>
+                      <li>• Widening your budget</li>
+                      <li>• Searching another locality</li>
+                    </ul>
+                  </div>
+                  <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                    <Link href="/properties" className="flex h-11 items-center justify-center rounded-[3px] bg-forest px-6 text-sm font-semibold text-white transition-colors hover:bg-forest-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">Clear all filters</Link>
+                    <Link href="/properties" className="flex h-11 items-center justify-center rounded-[3px] border border-line bg-white px-6 text-sm font-semibold text-ink transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">Browse all homes</Link>
+                  </div>
+                </div>}
         </section>
       </div>
     </div>

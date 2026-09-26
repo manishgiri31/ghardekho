@@ -5,21 +5,31 @@ import type { ApiListSuccess, PublicPropertyRecord } from "@ghardekho/types";
 export type DiscoveryResult = ApiListSuccess<PublicPropertyRecord> | null;
 export type DiscoveryState = "loading" | "error" | "empty" | "results";
 
+const apiFilterKeys = [
+  "q", "city", "locality", "propertyType", "listingType", "minPrice", "maxPrice", "bedrooms",
+  "minBedrooms", "maxBedrooms", "minArea", "maxArea", "furnishing", "page", "limit", "sort",
+] as const satisfies readonly (keyof PropertySearchInput)[];
+
+
+
 export function parseDiscoveryQuery(query: string) {
   const params = new URLSearchParams(query);
+  // This is a presentation mode only; the property API does not have project data.
+  params.delete("category");
   if (params.get("sort") === "area") params.set("sort", "area_desc");
   return propertySearchSchema.safeParse(Object.fromEntries(params));
 }
 
 export function discoveryApiQuery(filters: PropertySearchRequest) {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(filters)) {
+  for (const key of apiFilterKeys) {
+    const value = filters[key];
     if (value !== undefined) params.set(key, String(value));
   }
   return params.toString();
 }
 
-export function updateDiscoveryQuery(query: string, updates: Partial<Pick<PropertySearchInput, "page" | "sort">>) {
+export function updateDiscoveryQuery(query: string, updates: Partial<PropertySearchInput>) {
   const params = new URLSearchParams(query);
   for (const [key, value] of Object.entries(updates)) {
     if (value === undefined) params.delete(key);
